@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#FBF3EA">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Sổ tiền">
+<meta name="apple-mobile-web-app-title" content="KhoaBạc">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Sổ tiền</title>
+<title>KhoaBạc</title>
 <style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;min-height:100vh}[hidden]{display:none!important}img{max-width:100%}.greet{font-family:var(--f-display);font-weight:900;font-size:20px;line-height:1.3;background:color-mix(in srgb,var(--surface) 90%,transparent);border-radius:18px;padding:12px 16px;text-wrap:balance}
 </style>
 <script src="config.js"></script>
@@ -420,7 +420,7 @@ function authView(){
   if(st.mode==='noconfig')return`<div class="authbox card stack"><h2>Chưa cấu hình</h2><p class="note">Mở file <b>config.js</b> và điền Supabase URL và anon key theo hướng dẫn trong README.</p></div>`;
   const title={login:'Đăng nhập',signup:'Tạo tài khoản',forgot:'Quên mật khẩu',reset:'Đặt mật khẩu mới'}[m];
   return`<div class="authbox stack">
-   <div class="authhead">${bunny('flex',84)}<div><h1 style="font-size:28px">Sổ tiền</h1><p class="note" style="margin:4px 0 0">Ghi chi tiêu, theo dõi nợ, tạm ứng và ngân sách. Sổ của ai người nấy xem.</p></div></div>
+   <div class="authhead">${bunny('flex',84)}<div><h1 style="font-size:28px">KhoaBạc</h1><p class="note" style="margin:4px 0 0">Ghi chi tiêu, theo dõi nợ, tạm ứng và ngân sách. Sổ của ai người nấy xem.</p></div></div>
    <form class="card stack" id="authForm" style="gap:12px" novalidate>
     <h2>${title}</h2>
     ${m==='signup'?`<label class="f">Tên của bạn<input id="auName" autocomplete="name" placeholder="vd Khoa" required></label>`:''}
@@ -597,7 +597,7 @@ function render(){
   if(st.mode==='auth'||st.mode==='noconfig'){app.innerHTML=`<div class="wrap">${authView()}</div>`;const f=$('#authForm');if(f)f.addEventListener('submit',submitAuth);return}
   const V=VIEWS[route]||VIEWS.home;
   let html='';
-  try{html=V()}catch(e){console.error("VIEWERR",e.stack);html=hdr('Sổ tiền')+`<div class="card">Có lỗi khi hiển thị trang này. <button class="link" data-go="home">Về tổng quan</button></div>`}
+  try{html=V()}catch(e){console.error("VIEWERR",e.stack);html=hdr('KhoaBạc')+`<div class="card">Có lỗi khi hiển thị trang này. <button class="link" data-go="home">Về tổng quan</button></div>`}
   app.innerHTML=`<div class="wrap">${html}</div>${tabs()}`;
   for(const[k,v]of Object.entries(keep)){const el=document.getElementById(k);if(el&&!el.dataset.fresh)el.value=v}
   if(act){const el=document.getElementById(act);if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}}}
@@ -659,7 +659,7 @@ function greeting(){
   return greetCache.text;
 }
 VIEWS.home=()=>{
-  if(!S.meta.accounts.length&&!st.demo)return hdr('Sổ tiền')+onboarding();
+  if(!S.meta.accounts.length&&!st.demo)return hdr('KhoaBạc')+onboarding();
   const m=M(),s=monthStats(viewYM),p=monthStats(addMonths(viewYM,-1));
   const ch=p.exp?Math.round((s.exp-p.exp)/p.exp*100):null;
   const alerts=budgetRows(viewYM).filter(r=>r.p>=.8);
@@ -669,7 +669,7 @@ VIEWS.home=()=>{
   const recent=monthTx(viewYM).slice(0,6);
   const showRecap=new Date().getDate()<=7&&viewYM===curYM()&&monthStats(addMonths(curYM(),-1)).count>0;
   const SC=[['txns','📒','Sổ'],['bills','📅','Định kỳ'],['budget','🎯','Ngân sách'],['jobs','💼','Tạm ứng'],['debts','🤝','Nợ'],['split','🍲','Chia tiền'],['accounts','👛','Ví'],['recap','📊','Tổng kết']];
-  return hdr('Sổ tiền',{month:true})+`<div class="stack"><div class="greet">${esc(greeting())}</div>
+  return hdr('KhoaBạc',{month:true})+`<div class="stack"><div class="greet">${esc(greeting())}</div>
   ${st.demo?`<div class="banner warn"><div class="main">Bạn đang xem dữ liệu mẫu, không có gì được lưu.</div><button class="btn sm sec" data-act="demo-off">Thoát</button></div>`:''}
   <div class="duo">
    <button class="sum exp" data-go="txns"><span>Chi tiêu ▾</span><b>${fmt(s.exp)}</b><small>${ch!==null?(ch>0?'+':'')+ch+'% so với tháng trước':ymLabel(viewYM)}</small></button>
@@ -1142,7 +1142,7 @@ const AI_TOOLS=[
  {name:'thong_ke_thang',description:'Tổng thu, tổng chi và chi tiết theo nhóm của một tháng.',inputSchema:{type:'object',properties:{thang:{type:'string',description:'Dạng YYYY-MM'}},required:['thang']},execute:a=>monthSummary(String(a.thang||curYM()))},
  {name:'tim_giao_dich',description:'Lọc giao dịch theo ngày, loại, nhóm hoặc từ khoá. Trả về số lượng, tổng tiền và tối đa 80 giao dịch mới nhất.',inputSchema:{type:'object',properties:{tu_ngay:{type:'string',description:'YYYY-MM-DD'},den_ngay:{type:'string',description:'YYYY-MM-DD'},loai:{type:'string',enum:Object.keys(TYPES),description:'exp=chi, inc=thu, adv=ứng job, ref=hoàn ứng, lend=cho mượn, borrow=đi mượn, collect=thu nợ, repay=trả nợ, xfer=chuyển ví'},nhom:{type:'string',description:'Tên nhóm, vd Cafe, Ăn uống, Đi lại'},tu_khoa:{type:'string'}}},execute:a=>filterTx(a||{})}
 ];
-const AI_INTRO=()=>`Bạn là trợ lý tài chính cá nhân trong app "Sổ tiền" của bạn Khoa (làm Fieldwork Ops ở công ty tổ chức sự kiện tại TP.HCM, thu nhập gồm lương + thưởng dự án + OT cuối tuần, hay tạm ứng tiền cho job rồi được công ty hoàn). Xưng "em", gọi "bạn". Hôm nay là ${today()}. Luôn dùng công cụ để lấy số liệu thật, không đoán. Tiền ứng job và cho mượn không phải chi tiêu cá nhân. Trả lời ngắn gọn bằng tiếng Việt, dạng vài dòng hoặc gạch đầu dòng, số tiền viết kiểu 45.000đ hoặc 1,2 triệu. Không dùng markdown đậm/nghiêng.`;
+const AI_INTRO=()=>`Bạn là trợ lý tài chính cá nhân trong app "KhoaBạc" của bạn Khoa (làm Fieldwork Ops ở công ty tổ chức sự kiện tại TP.HCM, thu nhập gồm lương + thưởng dự án + OT cuối tuần, hay tạm ứng tiền cho job rồi được công ty hoàn). Xưng "em", gọi "bạn". Hôm nay là ${today()}. Luôn dùng công cụ để lấy số liệu thật, không đoán. Tiền ứng job và cho mượn không phải chi tiêu cá nhân. Trả lời ngắn gọn bằng tiếng Việt, dạng vài dòng hoặc gạch đầu dòng, số tiền viết kiểu 45.000đ hoặc 1,2 triệu. Không dùng markdown đậm/nghiêng.`;
 async function ask(q){
   q=q.trim();if(!q||asking||!st.sample)return;
   chat.push({role:'user',content:q});const ans={role:'assistant',content:''};chat.push(ans);asking=true;render();

@@ -1,4 +1,4 @@
-# Sổ tiền — web ghi chép tài chính cá nhân
+# KhoaBạc — web ghi chép tài chính cá nhân
 
 Web tĩnh (HTML + JS) dùng **Supabase** để đăng nhập và lưu dữ liệu, chạy trên **GitHub Pages**. Mỗi người tự đăng ký và chỉ xem được sổ của mình (khoá bằng Row Level Security).
 
