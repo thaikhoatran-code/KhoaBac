@@ -654,7 +654,8 @@ function greeting(){
   const s=monthStats(curYM());const over=budgetRows(curYM()).some(r=>r.p>=1);
   const mood=over?[`${n} ơi, ví đang khóc 😭`]:s.inc&&s.net>0?[`${n} đang giàu lên nè 📈`]:[];
   if(d>=25)mood.push(`Gồng thêm chút nữa thôi ${n} 💪`);
-  const pool=[...time,...rich,...mood];
+  const fun=[`${n} ơi, tiền không mọc trên cây đâu, nhưng mình trồng thử nha 🌱`,`Ví của ${n} vừa nhắn: "Cho em nghỉ ngơi chút" 😴`,`${n} mà tiết kiệm thì Shopee buồn lắm đó 🛒`,`Ting ting! À không, chưa có lương đâu ${n} 🔔`,`Chào ${n}, hôm nay mình giàu hay mình vui? 🤔`,`${n} ơi, tiêu ít thôi, để dành làm đám cưới 💍`,`Nghèo thì ghi sổ, giàu càng phải ghi sổ nha ${n} 📒`,`${n} ghé thăm, két sắt run cầm cập 🥶`,`Hôm nay ${n} định chốt đơn món gì đây? 👀`,`Tiền vào như nước, tiền ra như... thác nha ${n} 🌊`,`${n} ơi, sale 50% vẫn là mất 50% đó 🏷️`,`Bonjour ${n}, đếm tiền hay đếm nợ trước? 🧮`,`${n} là người giữ tiền giỏi nhất... trong nhà ${n} 🏆`,`Lương chưa về mà lòng đã đi tiêu rồi hả ${n}? 🫠`,`${n} ơi, ngân sách không phải để vượt đâu nha 🚧`,`Chào ${n}, chúc ví dày như sách giáo khoa 📚`,`Tiêu xài có kế hoạch, ${n} xứng đáng ăn ngon 🍗`,`${n} ơi, thỏ đang canh ví giùm rồi, yên tâm 🐰🛡️`];
+  const pool=[...time,...rich,...mood,...fun];
   greetCache={name:n,text:pool[Math.floor(Math.random()*pool.length)]};
   return greetCache.text;
 }
