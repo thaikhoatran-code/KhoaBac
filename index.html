@@ -474,7 +474,7 @@ const CFG=window.SOTIEN_CONFIG||{};
 const sb=(window.supabase&&CFG.supabaseUrl&&CFG.supabaseAnonKey)?window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey):null;
 st.user=null;st.auth='login';
 async function loadAll(){
-  const{data,error}=await sb.from('docs').select('name,data').not('name','like','img-%');
+  const{data,error}=await sb.from('docs').select('name,data').not('name','like','img-%').not('name','like','meet-%');
   if(error){toast('Không tải được dữ liệu. Kiểm tra mạng rồi tải lại trang.');st.mode='local';render();return}
   const fresh=blank();const keep=S;S=fresh;
   for(const r of data||[])if(!st.dirty.has(r.name))applyDoc(r.name,r.data);else{const k=keep;S[r.name]=k[r.name]}

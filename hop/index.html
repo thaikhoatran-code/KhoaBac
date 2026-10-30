@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FBF3EA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ghi họp">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Ghi họp</title>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&display=swap">
+<style>
+/* Layout: one-column phone screen. Home = big record button + list of meetings; meeting page = checklist grouped by topic, sticky action bar. */
+:root{
+  --bg:#FBF3EA; --surface:#FFFCF8; --sunk:#F3E8DB; --line:#EBDDCC;
+  --fg:#3A2E27; --muted:#857466; --faint:#B3A393;
+  --accent:#F2B33D; --accent-ink:#3A2E27; --accent-soft:#FCEBC4;
+  --ok:#3D8B57; --ok-soft:#DDF0DF; --rec:#D9483F; --rec-soft:#FBE0DC;
+  --warn:#B9771A; --warn-soft:#FCEBC9; --hero:#E7E5FA; --link:#D27A1E;
+  --shadow:0 1px 2px rgba(90,60,30,.05),0 8px 22px rgba(120,80,40,.07);
+  --f:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:20px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1C1714; --surface:#26201B; --sunk:#312922; --line:#3D332B;
+  --fg:#F3E9DF; --muted:#B3A393; --faint:#7E6F62;
+  --accent:#F2B33D; --accent-ink:#2A1F12; --accent-soft:#3E3018;
+  --ok:#6CC488; --ok-soft:#1F3324; --rec:#F0837A; --rec-soft:#3D2220;
+  --warn:#EBB052; --warn-soft:#3A2C14; --hero:#2C2A45; --link:#F2B33D;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1C1714; --surface:#26201B; --sunk:#312922; --line:#3D332B;
+  --fg:#F3E9DF; --muted:#B3A393; --faint:#7E6F62;
+  --accent:#F2B33D; --accent-ink:#2A1F12; --accent-soft:#3E3018;
+  --ok:#6CC488; --ok-soft:#1F3324; --rec:#F0837A; --rec-soft:#3D2220;
+  --warn:#EBB052; --warn-soft:#3A2C14; --hero:#2C2A45; --link:#F2B33D;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:var(--link)}
+#app{max-width:560px;margin:0 auto;padding:12px 16px calc(110px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;align-items:center;gap:10px;min-height:48px;margin-bottom:8px}
+.top h1{flex:1;margin:0;font-size:22px;font-weight:900;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top h1 small{display:block;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0}
+.ib{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--surface);box-shadow:var(--shadow);flex:none}
+.ib svg{width:22px;height:22px}
+.card{background:var(--surface);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;align-items:center;gap:8px}
+.card h3 .n{margin-left:auto;font-size:12px;letter-spacing:0;text-transform:none;background:var(--sunk);border-radius:99px;padding:1px 9px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 18px;border-radius:15px;font-weight:800;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--sunk);color:var(--fg)}
+.btn.danger{background:var(--rec-soft);color:var(--rec)}
+.btn.block{width:100%}
+.btn svg{width:20px;height:20px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>.btn{flex:1;white-space:nowrap;padding:0 10px;font-size:14px}
+.banner{background:var(--warn-soft);color:var(--fg);border-radius:16px;padding:12px 14px;margin-bottom:12px;font-size:14px}
+.banner b{color:var(--warn)}
+.field{display:block;margin-bottom:12px}
+.field>span{display:block;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:5px}
+.inp{width:100%;min-height:46px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);padding:10px 13px;font-size:16px}
+textarea.inp{min-height:110px;resize:vertical}
+.inp:focus{outline:none;border-color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:99px;background:var(--sunk);font-weight:700;font-size:13px}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+/* record hero */
+.hero{background:var(--hero);border-radius:28px;padding:20px 16px 18px;text-align:center;margin-bottom:14px}
+.recbtn{width:132px;height:132px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;margin:6px auto 10px;box-shadow:0 10px 26px rgba(242,179,61,.45),inset 0 -6px 0 rgba(0,0,0,.08);transition:transform .15s}
+.recbtn:active{transform:scale(.96)}
+.recbtn svg{width:56px;height:56px}
+.recbtn:disabled{filter:grayscale(.7);opacity:.55;box-shadow:none}
+.consent{display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--surface);border-radius:16px;padding:11px 13px;margin-top:10px;font-size:14px;font-weight:700}
+.consent input{width:22px;height:22px;accent-color:var(--ok);flex:none;margin:0}
+.alt{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.alt .btn{font-size:14px;padding:0 10px}
+/* recording */
+.recscreen{text-align:center;padding-top:12px}
+.timer{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:6px 0}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--rec);margin-right:6px;animation:pulse 1.2s infinite}
+.paused .dot{animation:none;background:var(--faint)}
+@keyframes pulse{50%{opacity:.25}}
+.meter{display:flex;gap:4px;justify-content:center;align-items:center;height:64px;margin:8px 0 16px}
+.meter i{width:7px;border-radius:4px;background:var(--rec);opacity:.75;height:8px;transition:height .08s}
+.paused .meter i{background:var(--faint)}
+.recctl{display:flex;gap:12px;justify-content:center;margin-bottom:16px}
+.recctl .btn{min-width:132px}
+.notes{text-align:left}
+.note{display:flex;gap:8px;padding:6px 0;border-top:1px dashed var(--line);font-size:14px}
+.note b{color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+/* list */
+.mtg{display:flex;gap:12px;align-items:center;padding:12px 14px;background:var(--surface);border-radius:18px;box-shadow:var(--shadow);margin-bottom:8px;width:100%;text-align:left}
+.mtg .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--accent-soft);flex:none}
+.mtg .ic svg{width:22px;height:22px}
+.mtg .t{flex:1;min-width:0}
+.mtg .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{display:inline-block;font-size:12px;font-weight:800;padding:2px 9px;border-radius:99px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)} .badge.warn{background:var(--warn-soft);color:var(--warn)} .badge.rec{background:var(--rec-soft);color:var(--rec)}
+.sec{font-size:13px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:18px 4px 8px}
+.empty{text-align:center;color:var(--muted);padding:18px 8px;font-size:14px}
+/* checklist */
+.it{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.it:first-of-type{border-top:0}
+.cb{width:26px;height:26px;border-radius:9px;border:2px solid var(--faint);flex:none;display:grid;place-items:center;margin-top:1px;background:var(--surface)}
+.cb svg{width:16px;height:16px;opacity:0}
+.it.done .cb{background:var(--ok);border-color:var(--ok);color:#fff}
+.it.done .cb svg{opacity:1}
+.it.done .tx>p{text-decoration:line-through;color:var(--muted)}
+.tx{flex:1;min-width:0}
+.tx>p{margin:0;font-weight:700}
+.meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.meta span{font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--sunk);color:var(--muted)}
+.meta .pend{background:var(--warn-soft);color:var(--warn)}
+.tx details{margin-top:5px;font-size:13px;color:var(--muted)}
+.tx summary{cursor:pointer;font-weight:700;list-style:none;display:inline}
+.tx summary::-webkit-details-marker{display:none}
+.tx q{display:block;font-style:italic;margin-top:4px;padding-left:10px;border-left:3px solid var(--line)}
+.ask{background:var(--warn-soft)}
+.ask h3{color:var(--warn)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.kv dt{color:var(--muted);font-weight:700}
+.kv dd{margin:0;font-weight:700}
+.tl{list-style:none;margin:0;padding:0}
+.tl li{display:flex;gap:10px;padding:5px 0;font-size:14px}
+.tl li b{flex:none;min-width:86px;color:var(--link)}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:5}
+.bar .row{max-width:560px;margin:0 auto;flex-wrap:nowrap}
+.bar .btn{padding:0 8px;font-size:14px}
+.steps{list-style:none;padding:0;margin:8px 0 0}
+.steps li{display:flex;gap:10px;align-items:center;padding:6px 0;font-weight:700}
+.steps li i{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:none}
+.steps li.on i{border-color:var(--accent);border-top-color:transparent;animation:spin .9s linear infinite}
+.steps li.ok i{background:var(--ok);border-color:var(--ok)}
+.steps li.wait{color:var(--faint)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.transcript{white-space:pre-wrap;font-size:14px;line-height:1.6;margin:0}
+.add{display:flex;gap:8px;margin-top:10px}
+.add .inp{min-height:42px;font-size:15px}
+.add .btn{min-height:42px;padding:0 14px}
+audio{width:100%;margin:4px 0}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:14px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px);text-align:center;box-shadow:var(--shadow)}
+.sum{margin:0;font-size:15px}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast" hidden></div>
+<script>
+'use strict';
+const CFG=window.SOTIEN_CONFIG||{};
+const sb=(window.supabase&&CFG.supabaseUrl&&CFG.supabaseAnonKey)?window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey):null;
+const GB='https://generativelanguage.googleapis.com';
+const KINDS=['Brief client','Họp nội bộ','Họp vendor','Khảo sát điểm','Khác'];
+const GROUPS=['Logistics & vận chuyển','Hàng hoá / quà tặng / POSM','Nhân sự hiện trường','Flow vận hành & timeline','Setup & sản xuất','Ngân sách & chi phí','Report & số liệu','Yêu cầu client','Khác'];
+const GLOSSARY_DEFAULT='Square, Lifebuoy, Unilever, Nestlé, Nescafé, KitKat, Candid, FC Online, PG, PB, Sup, Leader, Helper, POSM, sampling, redemption, activation, MT, booth, backdrop, standee, pop-up, Netco, Arito, run sheet, site check, dự toán, quyết toán';
+const INLINE_MAX=14*1024*1024;
+
+/* ---------- icons ---------- */
+const I={
+mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+stop:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+pause:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>',
+play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
+file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M10 17v-5l4 2.5z"/></svg>',
+paste:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>',
+gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
+share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+text:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h11M4 18h7"/></svg>',
+trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>',
+redo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8.5M20 3v5.5h-5.5"/></svg>'
+};
+
+/* ---------- small helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const pad=n=>String(n).padStart(2,'0');
+const clock=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return(h?h+':'+pad(m):m)+':'+pad(s%60)};
+const dmy=t=>{const d=new Date(t);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()};
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())};
+const WD=['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+const mins=s=>s<60?Math.round(s)+' giây':Math.round(s/60)+' phút';
+const mb=b=>(b/1048576).toFixed(b<10485760?1:0).replace('.',',')+' MB';
+const LS={get(k,d){try{const v=localStorage.getItem('ghihop-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('ghihop-'+k,JSON.stringify(v))}catch(e){}}};
+let toastT;
+function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,ms||2600)}
+const settings=()=>Object.assign({key:'',model:'',glossary:GLOSSARY_DEFAULT},LS.get('settings',{}));
+const saveSettings=p=>LS.set('settings',Object.assign(settings(),p));
+
+/* ---------- IndexedDB: meetings, finished audio, live chunks ---------- */
+let _db;
+function idb(){return _db||(_db=new Promise((res,rej)=>{const r=indexedDB.open('ghi-hop',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('meetings',{keyPath:'id'});d.createObjectStore('audio',{keyPath:'key'});d.createObjectStore('chunks',{autoIncrement:true}).createIndex('seg','seg')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
+async function tx(store,mode,fn){const d=await idb();return new Promise((res,rej)=>{const t=d.transaction(store,mode);let out;const r=fn(t.objectStore(store));if(r)r.onsuccess=()=>{out=r.result};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
+const dbGet=(s,k)=>tx(s,'readonly',o=>o.get(k));
+const dbAll=s=>tx(s,'readonly',o=>o.getAll());
+const dbPut=(s,v)=>tx(s,'readwrite',o=>o.put(v));
+const dbDel=(s,k)=>tx(s,'readwrite',o=>o.delete(k));
+const segChunks=k=>tx('chunks','readonly',o=>o.index('seg').getAll(k));
+async function delChunks(k){const d=await idb();return new Promise((res,rej)=>{const t=d.transaction('chunks','readwrite');const c=t.objectStore('chunks').index('seg').openCursor(IDBKeyRange.only(k));c.onsuccess=()=>{const cur=c.result;if(cur){cur.delete();cur.continue()}};t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+const audioKey=(id,n)=>id+':'+n;
+
+/* ---------- state ---------- */
+const st={view:'home',cur:null,list:[],rec:null,user:null,kind:LS.get('kind','Brief client'),consent:false,models:null,showText:false};
+const byId=id=>st.list.find(m=>m.id===id);
+function sortList(){st.list.sort((a,b)=>b.createdAt-a.createdAt)}
+async function saveMeeting(m,opts){
+  m.updatedAt=Date.now();
+  await dbPut('meetings',m);
+  if(!byId(m.id)){st.list.push(m);sortList()}
+  if(!(opts&&opts.local))cloudQueue(m);
+}
+
+/* ---------- cloud sync (text only, same Supabase account as KhoaBạc) ---------- */
+const cloudT={};
+function cloudQueue(m){
+  if(!sb||!st.user||m.status==='recording'||m.status==='transcribing'||m.status==='summarizing')return;
+  clearTimeout(cloudT[m.id]);
+  cloudT[m.id]=setTimeout(async()=>{
+    const{error}=await sb.from('docs').upsert({user_id:st.user.id,name:'meet-'+m.id,data:JSON.parse(JSON.stringify(m)),updated_at:new Date().toISOString()},{onConflict:'user_id,name'});
+    if(error)toast('Chưa lưu được lên mây, sẽ thử lại lần sửa sau.');
+  },1200);
+}
+async function cloudLoad(){
+  if(!sb||!st.user)return;
+  const{data,error}=await sb.from('docs').select('name,data').like('name','meet-%');
+  if(error)return;
+  const seen=new Set();
+  for(const r of data||[]){
+    const c=r.data;if(!c||!c.id)continue;seen.add(c.id);
+    const l=byId(c.id);
+    if(!l){if(c.deleted)continue;c.segments=c.segments||[];await dbPut('meetings',c);st.list.push(c)}
+    else if((c.updatedAt||0)>(l.updatedAt||0)){Object.assign(l,c);await dbPut('meetings',l)}
+  }
+  for(const m of st.list)if(!seen.has(m.id)&&m.status!=='recording')cloudQueue(m);
+  st.list=st.list.filter(m=>!m.deleted);sortList();render();
+}
+async function cloudDelete(id){if(sb&&st.user)await sb.from('docs').delete().eq('name','meet-'+id)}
+
+/* ---------- recording ---------- */
+const REC_TYPES=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm','audio/aac'];
+async function startRec(m){
+  if(!navigator.mediaDevices||!window.MediaRecorder){toast('Trình duyệt này chưa ghi âm được. Dùng Safari (iPhone) hoặc Chrome (Android), hoặc chọn file ghi âm có sẵn.',4500);return}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true,autoGainControl:true}})}
+  catch(e){toast('Chưa có quyền dùng micro. Vào Cài đặt điện thoại cho phép micro rồi thử lại.',4500);return}
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  const type=REC_TYPES.find(t=>MediaRecorder.isTypeSupported(t))||'';
+  let mr;
+  try{mr=new MediaRecorder(stream,type?{mimeType:type,audioBitsPerSecond:32000}:{audioBitsPerSecond:32000})}catch(e){mr=new MediaRecorder(stream)}
+  if(!m){m={id:uid(),title:'',kind:st.kind,createdAt:Date.now(),source:'rec',segments:[],notes:[],checks:{},status:'recording'}}
+  const n=m.segments.length,key=audioKey(m.id,n);
+  const seg={n,mime:mr.mimeType||type||'audio/webm',size:0,dur:0,at:Date.now()};
+  m.segments.push(seg);m.status='recording';
+  await saveMeeting(m,{local:true});
+  const R=st.rec={m,seg,key,mr,stream,seq:0,chain:Promise.resolve(),acc:0,startedAt:Date.now(),paused:false,stopping:false};
+  mr.ondataavailable=e=>{if(e.data&&e.data.size){seg.size+=e.data.size;const seq=R.seq++;R.chain=R.chain.then(()=>dbPut('chunks',{seg:key,seq,blob:e.data})).catch(()=>{})}};
+  mr.onstop=()=>finishRec(R);
+  mr.onerror=()=>stopRec(true);
+  stream.getAudioTracks().forEach(t=>t.onended=()=>{if(st.rec===R&&!R.stopping)stopRec(true)});
+  mr.start(5000);
+  startMeter(stream);wakeLock();
+  st.view='rec';st.cur=m.id;render();
+  R.tick=setInterval(updRec,500);
+}
+const elapsed=R=>R.acc+(R.paused?0:(Date.now()-R.startedAt)/1000);
+function pauseRec(){const R=st.rec;if(!R)return;if(R.paused){R.mr.resume();R.startedAt=Date.now();R.paused=false}else{R.mr.pause();R.acc=elapsed(R);R.paused=true}render()}
+function stopRec(interrupted){const R=st.rec;if(!R||R.stopping)return;R.stopping=true;R.interrupted=!!interrupted;R.seg.dur=elapsed(R);try{if(R.mr.state!=='inactive')R.mr.stop();else finishRec(R)}catch(e){finishRec(R)}}
+async function finishRec(R){
+  if(R.done)return;R.done=true;
+  clearInterval(R.tick);stopMeter();releaseWake();
+  R.stream.getTracks().forEach(t=>t.stop());
+  if(!R.seg.dur)R.seg.dur=elapsed(R);
+  await R.chain;
+  await sealSegment(R.m,R.seg);
+  R.m.status=R.m.transcript?'done':'audio';
+  if(R.interrupted)R.m.interrupted=true;
+  await saveMeeting(R.m);
+  st.rec=null;st.view='meeting';st.cur=R.m.id;render();
+  toast(R.interrupted?'Ghi âm bị ngắt, phần đã ghi vẫn được lưu. Bấm "Ghi tiếp" nếu họp chưa xong.':'Đã lưu '+mins(R.seg.dur)+' ghi âm.',4000);
+}
+async function sealSegment(m,seg){
+  const key=audioKey(m.id,seg.n);
+  const chunks=(await segChunks(key)).sort((a,b)=>a.seq-b.seq);
+  if(!chunks.length)return false;
+  const blob=new Blob(chunks.map(c=>c.blob),{type:seg.mime});
+  seg.size=blob.size;if(!seg.dur)seg.dur=chunks.length*5;
+  await dbPut('audio',{key,blob,mime:seg.mime});
+  await delChunks(key);
+  return true;
+}
+// After a crash or the phone killing the tab mid-recording, rebuild audio from the 5-second chunks.
+async function recoverStale(){
+  for(const m of st.list){
+    if(m.status!=='recording')continue;
+    for(const seg of m.segments){if(!(await dbGet('audio',audioKey(m.id,seg.n))))await sealSegment(m,seg)}
+    m.segments=m.segments.filter(s=>s.size>0);
+    m.status=m.transcript?'done':'audio';m.interrupted=true;
+    await saveMeeting(m);
+  }
+}
+let meterCtx,meterRaf;
+function startMeter(stream){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;meterCtx=new AC();
+    const an=meterCtx.createAnalyser();an.fftSize=256;meterCtx.createMediaStreamSource(stream).connect(an);
+    const buf=new Uint8Array(an.frequencyBinCount);
+    const loop=()=>{an.getByteFrequencyData(buf);const bars=document.querySelectorAll('.meter i');bars.forEach((b,i)=>{const v=buf[3+i*4]||0;b.style.height=(8+v/255*56)+'px'});meterRaf=requestAnimationFrame(loop)};loop();
+  }catch(e){}
+}
+function stopMeter(){cancelAnimationFrame(meterRaf);try{meterCtx&&meterCtx.close()}catch(e){}meterCtx=null}
+let wl;
+async function wakeLock(){try{if('wakeLock' in navigator)wl=await navigator.wakeLock.request('screen')}catch(e){}}
+function releaseWake(){try{wl&&wl.release()}catch(e){}wl=null}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&st.rec&&!st.rec.stopping)wakeLock()});
+window.addEventListener('beforeunload',e=>{if(st.rec){e.preventDefault();e.returnValue=''}});
+function updRec(){const R=st.rec;if(!R)return;const t=$('#timer');if(t)t.textContent=clock(elapsed(R));const s=$('#recsize');if(s)s.textContent=mb(R.seg.size)}
+async function addNote(){const i=$('#note');const v=i&&i.value.trim();if(!v||!st.rec)return;const R=st.rec;const off=R.m.segments.slice(0,-1).reduce((a,s)=>a+s.dur,0);R.m.notes=R.m.notes||[];R.m.notes.push({t:off+elapsed(R),text:v});i.value='';await saveMeeting(R.m,{local:true});render();setTimeout(()=>{const n=$('#note');n&&n.focus()},0)}
+
+/* ---------- importing a file or pasted text ---------- */
+function extMime(f){
+  if(f.type)return f.type;
+  const e=(f.name.split('.').pop()||'').toLowerCase();
+  return({m4a:'audio/mp4',mp4:'audio/mp4',mp3:'audio/mp3',wav:'audio/wav',aac:'audio/aac',ogg:'audio/ogg',oga:'audio/ogg',webm:'audio/webm',flac:'audio/flac',amr:'audio/amr',caf:'audio/x-caf'})[e]||'audio/mp4';
+}
+function audioDur(blob){return new Promise(res=>{const a=new Audio();const u=URL.createObjectURL(blob);let done=false;const fin=v=>{if(done)return;done=true;URL.revokeObjectURL(u);res(isFinite(v)?v:0)};a.preload='metadata';a.onloadedmetadata=()=>fin(a.duration);a.onerror=()=>fin(0);setTimeout(()=>fin(0),4000);a.src=u})}
+async function importFile(f){
+  if(!f)return;
+  const mime=extMime(f);
+  const m={id:uid(),title:f.name.replace(/\.[^.]+$/,''),kind:st.kind,createdAt:f.lastModified||Date.now(),source:'file',segments:[],notes:[],checks:{},status:'audio'};
+  const seg={n:0,mime,size:f.size,dur:await audioDur(f),at:m.createdAt};
+  m.segments.push(seg);
+  await dbPut('audio',{key:audioKey(m.id,0),blob:f,mime});
+  await saveMeeting(m);
+  st.view='meeting';st.cur=m.id;render();
+  if(settings().key)processMeeting(m);
+}
+async function importText(){
+  const v=$('#pasteText').value.trim();
+  if(v.length<20){toast('Dán nội dung buổi họp vào ô trước đã.');return}
+  const m={id:uid(),title:$('#pasteTitle').value.trim(),kind:st.kind,createdAt:Date.now(),source:'text',segments:[],notes:[],checks:{},status:'audio',transcript:v};
+  await saveMeeting(m);
+  st.view='meeting';st.cur=m.id;render();
+  processMeeting(m,{skipTranscribe:true});
+}
+
+/* ---------- Gemini ---------- */
+class GErr extends Error{constructor(msg,status){super(msg);this.status=status}}
+async function gErr(r){
+  let msg='';try{const j=await r.json();msg=(j.error&&j.error.message)||''}catch(e){}
+  if(r.status===400&&/API key/i.test(msg))return new GErr('Khoá Gemini không đúng. Vào Cài đặt dán lại khoá.',400);
+  if(r.status===403)return new GErr('Khoá Gemini chưa được phép dùng (403). Kiểm tra lại khoá trong Google AI Studio.',403);
+  if(r.status===429)return new GErr('Đã hết lượt dùng miễn phí trong lúc này. Đợi vài phút rồi bấm Thử lại.',429);
+  if(r.status>=500)return new GErr('Máy chủ Google đang bận ('+r.status+'). Bấm Thử lại sau ít phút.',r.status);
+  return new GErr('Lỗi Gemini '+r.status+(msg?': '+msg:''),r.status);
+}
+const gHead=extra=>Object.assign({'x-goog-api-key':settings().key},extra||{});
+async function listModels(){
+  const r=await fetch(GB+'/v1beta/models?pageSize=1000',{headers:gHead()});
+  if(!r.ok)throw await gErr(r);
+  const j=await r.json();
+  return(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace(/^models\//,'')).filter(n=>/^gemini-/.test(n));
+}
+const ver=n=>{const m=n.match(/^gemini-(\d+(?:\.\d+)?)/);return m?parseFloat(m[1]):0};
+function pickFlash(list){
+  const bad=/lite|tts|live|image|audio|embed|exp|thinking|8b|native|robotics|computer|learnlm|latest/;
+  const cands=list.filter(n=>/^gemini-\d+(\.\d+)?-flash/.test(n)&&!bad.test(n));
+  const stable=cands.filter(n=>!/preview/.test(n));
+  const pool=stable.length?stable:cands;
+  pool.sort((a,b)=>ver(b)-ver(a)||a.length-b.length);
+  return pool[0]||'';
+}
+async function getModel(){
+  const s=settings();if(s.model)return s.model;
+  const c=LS.get('modelCache',null);
+  if(c&&c.id&&Date.now()-c.at<3*864e5&&c.k===s.key.slice(-6))return c.id;
+  try{const list=await listModels();st.models=list;const id=pickFlash(list)||'gemini-flash-latest';LS.set('modelCache',{id,at:Date.now(),k:s.key.slice(-6)});return id}
+  catch(e){if(e.status===400||e.status===403)throw e;return 'gemini-flash-latest'}
+}
+async function gemini(parts,cfg){
+  const model=await getModel();
+  const r=await fetch(GB+'/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',headers:gHead({'Content-Type':'application/json'}),body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:cfg})});
+  if(!r.ok)throw await gErr(r);
+  const j=await r.json();const c=j.candidates&&j.candidates[0];
+  if(!c){const b=j.promptFeedback&&j.promptFeedback.blockReason;throw new GErr(b?'Gemini từ chối xử lý ('+b+').':'Gemini không trả kết quả. Bấm Thử lại.')}
+  const text=((c.content&&c.content.parts)||[]).filter(p=>!p.thought).map(p=>p.text||'').join('');
+  return{text,finish:c.finishReason,model};
+}
+function blobB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(b)})}
+async function uploadFile(blob,mime,name){
+  const r=await fetch(GB+'/upload/v1beta/files',{method:'POST',headers:gHead({'X-Goog-Upload-Protocol':'resumable','X-Goog-Upload-Command':'start','X-Goog-Upload-Header-Content-Length':String(blob.size),'X-Goog-Upload-Header-Content-Type':mime,'Content-Type':'application/json'}),body:JSON.stringify({file:{display_name:name}})});
+  if(!r.ok)throw await gErr(r);
+  const url=r.headers.get('x-goog-upload-url');
+  if(!url)throw new GErr('Không tải được file lớn lên Gemini từ trình duyệt này. Thử file ngắn hơn (dưới khoảng 1 tiếng).');
+  const r2=await fetch(url,{method:'POST',headers:{'X-Goog-Upload-Command':'upload, finalize','X-Goog-Upload-Offset':'0'},body:blob});
+  if(!r2.ok)throw await gErr(r2);
+  let f=(await r2.json()).file;
+  for(let i=0;i<100&&f&&f.state==='PROCESSING';i++){await sleep(3000);const g=await fetch(GB+'/v1beta/'+f.name,{headers:gHead()});if(g.ok)f=await g.json()}
+  if(!f||f.state==='FAILED')throw new GErr('Gemini không đọc được file ghi âm này.');
+  return f.uri;
+}
+// Browsers record webm/opus (Chrome) or mp4/aac (Safari); try the audio type first, then the video container type Gemini always accepts.
+function mimeCands(m){const b=(m||'').split(';')[0].toLowerCase();if(/webm/.test(b))return['audio/webm','video/webm'];if(/mp4|m4a|x-m4a|aac/.test(b))return['audio/mp4','video/mp4','audio/aac'];if(/mpeg|mp3/.test(b))return['audio/mp3'];if(/wav/.test(b))return['audio/wav'];return[b||'audio/mp4']}
+
+function transcribePrompt(m){
+  const s=settings();
+  return `Đây là ghi âm một buổi "${m.kind||'họp'}" của công ty tổ chức sự kiện Square tại Việt Nam (event, pop-up, activation, sampling & redemption tại siêu thị). Ngày họp: ${WD[new Date(m.createdAt).getDay()]}, ${dmy(m.createdAt)}.
+${m.segments.length>1?`Ghi âm gồm ${m.segments.length} đoạn liên tiếp của cùng một buổi họp, theo đúng thứ tự gửi kèm.`:''}
+Hãy chép lại TOÀN BỘ lời nói bằng tiếng Việt, đúng nguyên văn, không tóm tắt, không bỏ đoạn.
+- Mỗi lượt nói một dòng, mở đầu bằng mốc thời gian [mm:ss] và người nói. Nếu nghe ra tên hoặc vai trò (vd "chị Lan (client)", "anh Khoa", "bên Production") thì ghi tên đó, không thì ghi "Người 1", "Người 2"...
+- Giữ chính xác số lượng, số tiền, kích thước, ngày giờ, địa chỉ, tên siêu thị/điểm, tên người, tên nhãn hàng. Viết số bằng chữ số.
+- Từ chuyên môn và tên riêng có thể xuất hiện: ${s.glossary||GLOSSARY_DEFAULT}.
+- Đoạn không nghe rõ ghi [không rõ]. Bỏ qua tiếng ồn, không bịa nội dung.
+Chỉ trả về lời thoại, không thêm lời giới thiệu.`;
+}
+function summaryPrompt(m){
+  const notes=(m.notes||[]).map(n=>`[${clock(n.t)}] ${n.text}`).join('\n');
+  return `Anh là trợ lý của bộ phận Fieldwork Ops (vận hành hiện trường) ở công ty tổ chức sự kiện Square. Dưới đây là lời thoại một buổi "${m.kind||'họp'}" ngày ${WD[new Date(m.createdAt).getDay()]}, ${dmy(m.createdAt)}.
+Mục tiêu: KHÔNG ĐỂ SÓT bất kỳ thông tin nào các bên đã nói hoặc đã chốt, để người vận hành làm theo mà không cần nghe lại ghi âm.
+
+Yêu cầu:
+1. "viec": mỗi việc cần làm, mỗi thông tin đã chốt hoặc yêu cầu là MỘT mục, viết cụ thể đủ để làm ngay: kèm số lượng, quy cách, địa điểm, giờ giấc, đầu mối nếu có. Không gộp nhiều việc vào một mục. Thà nhiều mục còn hơn sót.
+2. Xếp mỗi mục vào đúng một nhóm trong danh sách cho sẵn. Bỏ nhóm không có mục nào.
+3. "phu_trach": ai/bên nào làm (Account, Production, Fieldwork, client, vendor, tên người). Không rõ thì để "".
+4. "han": hạn chót hoặc thời điểm. Đổi ngày tương đối ("thứ 7 này", "tuần sau") ra ngày cụ thể dd/mm dựa vào ngày họp. Không có thì để "".
+5. "da_chot": true nếu các bên đã thống nhất; false nếu mới đề xuất, còn bàn, hoặc chờ xác nhận.
+6. "trich_dan": câu nói gốc ngắn gọn làm bằng chứng, kèm mốc [mm:ss] nếu lời thoại có.
+7. "can_hoi_lai": những điểm còn mơ hồ, mâu thuẫn, thiếu người phụ trách, thiếu hạn, thiếu số lượng — viết thành câu hỏi để hỏi lại các bên.
+8. "moc_thoi_gian": các mốc ngày giờ quan trọng (khảo sát, duyệt, giao hàng, setup, chạy, report, quyết toán) sắp theo thứ tự thời gian.
+9. "thong_tin": thông tin chung của chương trình nếu có nhắc đến: Client/nhãn hàng, loại chương trình, thời gian, địa điểm, quy mô, ngân sách, KPI.
+10. "rui_ro": rủi ro vận hành nên lường trước (chỉ nêu khi có căn cứ từ buổi họp).
+11. Chỉ dùng thông tin có trong lời thoại. Không bịa.
+${notes?`\nGhi chú nhanh người ghi âm bấm trong lúc họp (ưu tiên đưa vào checklist):\n${notes}\n`:''}
+Danh sách nhóm: ${GROUPS.join(' | ')}
+
+LỜI THOẠI:
+${m.transcript}`;
+}
+const S_STR={type:'STRING'};
+const SCHEMA={type:'OBJECT',properties:{
+  tieu_de:{type:'STRING',description:'Tên ngắn cho buổi họp, vd "Brief Candid tiệc private"'},
+  tom_tat:{type:'STRING',description:'Tóm tắt 2-4 câu'},
+  thong_tin:{type:'ARRAY',items:{type:'OBJECT',properties:{muc:S_STR,gia_tri:S_STR},required:['muc','gia_tri']}},
+  nhom:{type:'ARRAY',items:{type:'OBJECT',properties:{
+    ten:{type:'STRING',enum:GROUPS},
+    viec:{type:'ARRAY',items:{type:'OBJECT',properties:{noi_dung:S_STR,phu_trach:S_STR,han:S_STR,da_chot:{type:'BOOLEAN'},trich_dan:S_STR},required:['noi_dung','phu_trach','han','da_chot','trich_dan']}}
+  },required:['ten','viec']}},
+  can_hoi_lai:{type:'ARRAY',items:S_STR},
+  moc_thoi_gian:{type:'ARRAY',items:{type:'OBJECT',properties:{thoi_diem:S_STR,viec:S_STR},required:['thoi_diem','viec']}},
+  rui_ro:{type:'ARRAY',items:S_STR}
+},required:['tieu_de','tom_tat','thong_tin','nhom','can_hoi_lai','moc_thoi_gian','rui_ro']};
+function normalize(r){
+  const arr=v=>Array.isArray(v)?v:[];
+  const order=g=>{const i=GROUPS.indexOf(g.ten);return i<0?99:i};
+  return{tieu_de:String(r.tieu_de||''),tom_tat:String(r.tom_tat||''),thong_tin:arr(r.thong_tin).filter(x=>x&&x.gia_tri),
+    nhom:arr(r.nhom).map(g=>({ten:g.ten||'Khác',viec:arr(g.viec).filter(v=>v&&v.noi_dung)})).filter(g=>g.viec.length).sort((a,b)=>order(a)-order(b)),
+    can_hoi_lai:arr(r.can_hoi_lai).filter(Boolean),moc_thoi_gian:arr(r.moc_thoi_gian).filter(x=>x&&x.viec),rui_ro:arr(r.rui_ro).filter(Boolean)};
+}
+const running=new Set();
+async function processMeeting(m,opts){
+  opts=opts||{};
+  if(!settings().key){st.view='settings';render();toast('Dán khoá Gemini trước, rồi quay lại bấm Tạo checklist.',4000);return}
+  if(running.has(m.id))return;running.add(m.id);
+  m.error='';
+  try{
+    if(!opts.skipTranscribe&&(!m.transcript||opts.retranscribe)){
+      m.status='transcribing';m.progress='Đang chuẩn bị ghi âm…';await saveMeeting(m,{local:true});render();
+      const raw=[];
+      for(const seg of m.segments){
+        const a=await dbGet('audio',audioKey(m.id,seg.n));
+        if(!a)throw new GErr('Không thấy file ghi âm trên máy này (ghi âm chỉ lưu ở máy đã ghi).');
+        const cands=mimeCands(a.mime||seg.mime);
+        if(a.blob.size<=INLINE_MAX)raw.push({cands,inline:await blobB64(a.blob)});
+        else{m.progress='Đang tải ghi âm lên ('+mb(a.blob.size)+')…';render();raw.push({cands,uri:await uploadFile(a.blob,cands[0],(m.title||'hop')+'-'+seg.n)})}
+      }
+      m.progress='Đang chép lời (buổi dài có thể mất vài phút)…';render();
+      const tries=Math.max(...raw.map(p=>p.cands.length));let out,lastErr;
+      for(let i=0;i<tries;i++){
+        const parts=[{text:transcribePrompt(m)}].concat(raw.map(p=>{const mt=p.cands[Math.min(i,p.cands.length-1)];return p.inline?{inlineData:{mimeType:mt,data:p.inline}}:{fileData:{mimeType:mt,fileUri:p.uri}}}));
+        try{out=await gemini(parts,{temperature:0.1,maxOutputTokens:65536});break}
+        catch(e){lastErr=e;if(e.status!==400||/Khoá/.test(e.message))throw e}
+      }
+      if(!out)throw lastErr;
+      if(!out.text.trim())throw new GErr('Gemini không nghe ra lời nói nào trong ghi âm.');
+      m.transcript=out.text.trim()+(out.finish==='MAX_TOKENS'?'\n\n[… lời thoại bị cắt vì buổi họp quá dài]':'');
+      m.model=out.model;
+      await saveMeeting(m,{local:true});
+    }
+    m.status='summarizing';m.progress='Đang lập checklist…';await saveMeeting(m,{local:true});render();
+    const out=await gemini([{text:summaryPrompt(m)}],{temperature:0.2,maxOutputTokens:32768,responseMimeType:'application/json',responseSchema:SCHEMA});
+    let r;try{r=JSON.parse(out.text)}catch(e){const t=out.text.slice(out.text.indexOf('{'),out.text.lastIndexOf('}')+1);r=JSON.parse(t)}
+    m.result=normalize(r);m.checks={};m.model=out.model;
+    if(!m.title&&m.result.tieu_de)m.title=m.result.tieu_de;
+    m.status='done';
+  }catch(e){
+    m.status='error';m.error=e.message||String(e);
+    if(/Failed to fetch|NetworkError|Load failed/i.test(m.error))m.error='Mất mạng giữa chừng. Ghi âm vẫn còn trên máy, bấm Thử lại khi có mạng.';
+  }finally{running.delete(m.id)}
+  m.progress='';await saveMeeting(m);render();
+  if(m.status==='done'&&st.cur!==m.id)toast('Đã xong checklist: '+(m.title||'buổi họp'));
+}
+
+/* ---------- checklist helpers ---------- */
+function allItems(m){const r=m.result;if(!r)return[];const a=[];r.nhom.forEach((g,gi)=>g.viec.forEach((v,vi)=>a.push({k:'g'+gi+'-'+vi,v,g})));return a}
+function progress(m){const a=allItems(m);return{done:a.filter(x=>m.checks&&m.checks[x.k]).length,total:a.length}}
+function zaloText(m){
+  const r=m.result;if(!r)return m.transcript||'';
+  const L=[];const ck=k=>m.checks&&m.checks[k]?'☑':'☐';
+  L.push('📋 '+(m.title||r.tieu_de||'Buổi họp'));
+  L.push('🗓 '+WD[new Date(m.createdAt).getDay()]+' '+dmy(m.createdAt)+' · '+(m.kind||''));
+  if(r.tom_tat)L.push('',r.tom_tat);
+  if(r.thong_tin.length){L.push('','THÔNG TIN CHUNG');r.thong_tin.forEach(x=>L.push('• '+x.muc+': '+x.gia_tri))}
+  if(r.can_hoi_lai.length){L.push('','❗ CẦN HỎI LẠI');r.can_hoi_lai.forEach((q,i)=>L.push(ck('q'+i)+' '+q))}
+  r.nhom.forEach((g,gi)=>{L.push('','▸ '+g.ten.toUpperCase());g.viec.forEach((v,vi)=>{const meta=[v.phu_trach,v.han&&('hạn '+v.han),v.da_chot?'':'chưa chốt'].filter(Boolean).join(' · ');L.push(ck('g'+gi+'-'+vi)+' '+v.noi_dung+(meta?' ('+meta+')':''))})});
+  if(r.moc_thoi_gian.length){L.push('','⏰ MỐC THỜI GIAN');r.moc_thoi_gian.forEach(x=>L.push('• '+x.thoi_diem+': '+x.viec))}
+  if(r.rui_ro.length){L.push('','⚠ RỦI RO');r.rui_ro.forEach(x=>L.push('• '+x))}
+  return L.join('\n');
+}
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Đã sao chép, dán vào Zalo là xong.')}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Đã sao chép.')}catch(_){toast('Không sao chép được.')}a.remove()}}
+async function shareText(m){const t=zaloText(m);if(navigator.share){try{await navigator.share({title:m.title||'Checklist họp',text:t})}catch(e){}}else copyText(t)}
+
+/* ---------- views ---------- */
+function vHome(){
+  const s=settings();
+  const recent=st.list.filter(m=>m.status!=='recording');
+  return `<div class="top"><h1>Ghi họp<small>Ghi âm → checklist không sót việc</small></h1><button class="ib" data-act="settings" aria-label="Cài đặt">${I.gear}</button></div>
+${s.key?'':`<div class="banner"><b>Cần 1 bước cài đặt:</b> dán khoá Gemini (miễn phí) để app chép lời và lập checklist. Vẫn ghi âm được trước, xử lý sau. <a href="#" data-act="settings">Mở cài đặt</a></div>`}
+<div class="hero">
+  <div class="chips" style="justify-content:center">${KINDS.map(k=>`<button class="chip${st.kind===k?' on':''}" data-act="kind" data-k="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+  <button class="recbtn" data-act="rec" ${st.consent?'':'disabled'} aria-label="Bắt đầu ghi âm">${I.mic}</button>
+  <div style="font-weight:900;font-size:17px">${st.consent?'Bấm để bắt đầu ghi':'Xin phép trước khi ghi'}</div>
+  <label class="consent"><input type="checkbox" id="consent" ${st.consent?'checked':''}><span>Em đã báo và được mọi người trong buổi họp đồng ý cho ghi âm</span></label>
+</div>
+<div class="alt">
+  <label class="btn ghost">${I.file} Chọn file ghi âm<input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.ogg,.webm,.mp4" hidden></label>
+  <button class="btn ghost" data-act="paste">${I.paste} Dán văn bản</button>
+</div>
+<div class="sec">Các buổi đã ghi</div>
+${recent.length?recent.map(vItem).join(''):`<div class="empty">Chưa có buổi nào. Bấm micro để ghi buổi brief đầu tiên.</div>`}`;
+}
+function statusBadge(m){
+  if(m.status==='done'){const p=progress(m);return `<span class="badge ok">${p.done}/${p.total} việc</span>`}
+  if(m.status==='transcribing'||m.status==='summarizing')return '<span class="badge warn">Đang xử lý</span>';
+  if(m.status==='error')return '<span class="badge rec">Lỗi, thử lại</span>';
+  if(m.status==='recording')return '<span class="badge rec">Đang ghi</span>';
+  return '<span class="badge">Chưa xử lý</span>';
+}
+function vItem(m){
+  const dur=(m.segments||[]).reduce((a,s)=>a+(s.dur||0),0);
+  return `<button class="mtg" data-act="open" data-id="${m.id}"><span class="ic">${m.source==='text'?I.text:I.list}</span><span class="t"><b>${esc(m.title||m.kind||'Buổi họp')}</b><span class="small muted">${WD[new Date(m.createdAt).getDay()]} ${dmy(m.createdAt)} · ${hm(m.createdAt)}${dur?' · '+mins(dur):''}</span></span>${statusBadge(m)}</button>`;
+}
+function vRec(){
+  const R=st.rec;if(!R)return vHome();
+  const notes=R.m.notes||[];
+  return `<div class="recscreen${R.paused?' paused':''}">
+<div class="top"><h1 style="text-align:center">${R.paused?'Đang tạm dừng':'<span class="dot"></span>Đang ghi âm'}<small>${esc(R.m.kind||'')}${R.m.segments.length>1?' · đoạn '+R.m.segments.length:''}</small></h1></div>
+<div class="timer" id="timer">${clock(elapsed(R))}</div>
+<div class="small muted"><span id="recsize">${mb(R.seg.size)}</span> · tự lưu mỗi 5 giây</div>
+<div class="meter">${'<i></i>'.repeat(14)}</div>
+<div class="recctl"><button class="btn ghost" data-act="pause">${R.paused?I.play+' Ghi tiếp':I.pause+' Tạm dừng'}</button><button class="btn danger" data-act="stop">${I.stop} Dừng & lưu</button></div>
+<div class="banner" style="text-align:left">Giữ màn hình sáng, đừng chuyển sang app khác: điện thoại có thể ngắt micro. Nếu bị ngắt, phần đã ghi vẫn còn, mở lại buổi họp bấm <b>Ghi tiếp</b>.</div>
+<div class="card notes"><h3>Ghi chú nhanh lúc họp</h3>
+<div class="add" style="margin-top:0"><input class="inp" id="note" placeholder="vd: chốt 200 phần quà, giao trước 15/11" enterkeyhint="done"><button class="btn" data-act="note">Thêm</button></div>
+${notes.slice().reverse().map(n=>`<div class="note"><b>${clock(n.t)}</b><span>${esc(n.text)}</span></div>`).join('')}
+<p class="hint">Ghi chú được ưu tiên đưa vào checklist.</p></div></div>`;
+}
+function vSteps(m){
+  const t=m.status==='transcribing',s=m.status==='summarizing';
+  const skip=m.source==='text';
+  return `<div class="card"><h3>Đang xử lý</h3><ul class="steps">
+${skip?'':`<li class="${t?'on':'ok'}"><i></i>Chép lời từ ghi âm</li>`}
+<li class="${s?'on':'wait'}"><i></i>Lập checklist theo nhóm việc</li></ul>
+<p class="hint">${esc(m.progress||'')} Có thể khoá màn hình hoặc quay lại danh sách, nhưng đừng đóng app.</p></div>`;
+}
+function vMeeting(){
+  const m=byId(st.cur);if(!m){st.view='home';return vHome()}
+  const dur=(m.segments||[]).reduce((a,s)=>a+(s.dur||0),0);
+  let h=`<div class="top"><button class="ib" data-act="home" aria-label="Quay lại">${I.back}</button><h1 data-act="rename">${esc(m.title||m.kind||'Buổi họp')}<small>${WD[new Date(m.createdAt).getDay()]} ${dmy(m.createdAt)} · ${hm(m.createdAt)}${dur?' · '+mins(dur):''} · ${esc(m.kind||'')}</small></h1></div>`;
+  const busy=m.status==='transcribing'||m.status==='summarizing';
+  if(busy)h+=vSteps(m);
+  if(m.status==='error')h+=`<div class="banner"><b>Chưa xong:</b> ${esc(m.error)}</div><div class="row" style="margin-bottom:12px"><button class="btn" data-act="process">${I.redo} Thử lại</button></div>`;
+  if(m.status==='audio'){
+    h+=`<div class="card"><h3>Ghi âm đã lưu</h3><p class="sum">${m.segments.length} đoạn · ${mins(dur)}${m.interrupted?' · <b>có lúc bị ngắt</b>':''}</p>
+<p class="hint">Bấm Tạo checklist khi có mạng. Họp chưa xong thì bấm Ghi tiếp, các đoạn sẽ được gộp.</p>
+<div class="row" style="margin-top:12px"><button class="btn" data-act="process">${I.list} Tạo checklist</button>${m.source==='rec'?`<button class="btn ghost" data-act="more">${I.mic} Ghi tiếp</button>`:''}</div></div>`;
+  }
+  if(m.status==='done'&&m.result)h+=vResult(m);
+  if(m.segments&&m.segments.length&&!busy)h+=`<div class="card"><h3>Nghe lại ghi âm</h3><div id="players"><p class="hint">Đang tải…</p></div></div>`;
+  if(m.transcript&&!busy){
+    h+=`<div class="card"><h3>Lời thoại<button class="chip" style="margin-left:auto" data-act="toggleText">${st.showText?'Thu gọn':'Xem'}</button></h3>${st.showText?`<p class="transcript">${esc(m.transcript)}</p>`:'<p class="hint">Bấm Xem để đọc toàn bộ lời thoại và đối chiếu.</p>'}</div>`;
+  }
+  if(!busy)h+=`<div class="row" style="margin:6px 0 16px">${m.status==='done'?`<button class="btn ghost" data-act="redo">${I.redo} Làm lại checklist</button>`:''}${m.status==='done'&&m.source==='rec'?`<button class="btn ghost" data-act="more">${I.mic} Ghi tiếp</button>`:''}<button class="btn danger" data-act="del">${I.trash} Xoá</button></div>`;
+  if(m.status==='done'&&m.result)h+=`<div class="bar"><div class="row"><button class="btn" data-act="copy">${I.copy} Sao chép Zalo</button><button class="btn ghost" data-act="share">${I.share} Chia sẻ</button></div></div>`;
+  return h;
+}
+function vCheck(m,k,body){const on=m.checks&&m.checks[k];return `<div class="it${on?' done':''}" data-k="${k}"><button class="cb" data-act="tick" data-k="${k}" aria-label="Đánh dấu xong">${I.check}</button><div class="tx">${body}</div></div>`}
+function vResult(m){
+  const r=m.result;const p=progress(m);let h='';
+  h+=`<div class="card" style="background:var(--hero)"><h3>Tóm tắt<span class="n">${p.done}/${p.total} việc xong</span></h3><p class="sum">${esc(r.tom_tat)}</p>${m.interrupted?'<p class="hint">Ghi âm có lúc bị ngắt, nên đối chiếu thêm với các bên.</p>':''}</div>`;
+  if(r.can_hoi_lai.length)h+=`<div class="card ask"><h3>❗ Cần hỏi lại các bên<span class="n">${r.can_hoi_lai.length}</span></h3>${r.can_hoi_lai.map((q,i)=>vCheck(m,'q'+i,`<p>${esc(q)}</p>`)).join('')}</div>`;
+  if(r.thong_tin.length)h+=`<div class="card"><h3>Thông tin chung</h3><dl class="kv">${r.thong_tin.map(x=>`<dt>${esc(x.muc)}</dt><dd>${esc(x.gia_tri)}</dd>`).join('')}</dl></div>`;
+  r.nhom.forEach((g,gi)=>{
+    const n=g.viec.filter((v,vi)=>m.checks&&m.checks['g'+gi+'-'+vi]).length;
+    h+=`<div class="card"><h3>${esc(g.ten)}<span class="n">${n}/${g.viec.length}</span></h3>${g.viec.map((v,vi)=>{
+      const meta=[v.phu_trach&&`<span>👤 ${esc(v.phu_trach)}</span>`,v.han&&`<span>⏰ ${esc(v.han)}</span>`,v.da_chot?'':'<span class="pend">Chưa chốt</span>',v.manual?'<span>Em thêm</span>':''].filter(Boolean).join('');
+      return vCheck(m,'g'+gi+'-'+vi,`<p>${esc(v.noi_dung)}</p>${meta?`<div class="meta">${meta}</div>`:''}${v.trich_dan?`<details><summary>Nghe ai nói gì ▾</summary><q>${esc(v.trich_dan)}</q></details>`:''}`);
+    }).join('')}</div>`;
+  });
+  h+=`<div class="card"><h3>Thêm việc bị thiếu</h3><select class="inp" id="addGroup" style="margin-bottom:8px">${GROUPS.map(g=>`<option>${esc(g)}</option>`).join('')}</select><div class="add" style="margin-top:0"><input class="inp" id="addText" placeholder="Việc cần làm" enterkeyhint="done"><button class="btn" data-act="addItem">Thêm</button></div></div>`;
+  if(r.moc_thoi_gian.length)h+=`<div class="card"><h3>⏰ Mốc thời gian</h3><ul class="tl">${r.moc_thoi_gian.map(x=>`<li><b>${esc(x.thoi_diem)}</b><span>${esc(x.viec)}</span></li>`).join('')}</ul></div>`;
+  if(r.rui_ro.length)h+=`<div class="card"><h3>⚠ Rủi ro nên lường trước</h3><ul class="tl">${r.rui_ro.map(x=>`<li><span>• ${esc(x)}</span></li>`).join('')}</ul></div>`;
+  return h;
+}
+function vPaste(){
+  return `<div class="top"><button class="ib" data-act="home" aria-label="Quay lại">${I.back}</button><h1>Dán văn bản<small>Biên bản, tin nhắn Zalo, ghi chú…</small></h1></div>
+<div class="card"><label class="field"><span>Tên buổi họp</span><input class="inp" id="pasteTitle" placeholder="vd: Brief Candid tiệc private"></label>
+<div class="field"><span>Loại</span><div class="chips">${KINDS.map(k=>`<button class="chip${st.kind===k?' on':''}" data-act="kind" data-k="${esc(k)}">${esc(k)}</button>`).join('')}</div></div>
+<label class="field"><span>Nội dung</span><textarea class="inp" id="pasteText" style="min-height:220px" placeholder="Dán nội dung buổi họp, đoạn chat brief của client, hoặc lời thoại đã có…"></textarea></label>
+<button class="btn block" data-act="pasteGo">${I.list} Lập checklist</button></div>`;
+}
+function vSettings(){
+  const s=settings();
+  const models=st.models||[];
+  return `<div class="top"><button class="ib" data-act="home" aria-label="Quay lại">${I.back}</button><h1>Cài đặt</h1></div>
+<div class="card"><h3>Khoá Gemini (chép lời + lập checklist)</h3>
+<p class="small" style="margin:0 0 10px">1. Mở <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, đăng nhập Google.<br>2. Bấm <b>Create API key</b>, sao chép.<br>3. Dán vào ô dưới rồi bấm Lưu & kiểm tra.</p>
+<label class="field"><input class="inp" id="key" type="password" autocomplete="off" placeholder="AIza…" value="${esc(s.key)}"></label>
+<button class="btn block" data-act="saveKey">Lưu & kiểm tra</button>
+<p class="hint" id="keyMsg">${s.key?'Khoá chỉ lưu trên máy này, không gửi lên mây.':'Chưa có khoá.'}</p>
+<p class="hint">Lưu ý: gói miễn phí của Google có thể dùng nội dung gửi lên để cải thiện sản phẩm. Họp có thông tin mật của client thì nên bật thanh toán (Billing) cho khoá, khi đó Google không dùng dữ liệu, chi phí khoảng vài trăm đồng mỗi giờ ghi âm.</p></div>
+<div class="card"><h3>Mô hình</h3><select class="inp" id="model"><option value="">Tự chọn bản Flash mới nhất${LS.get('modelCache',null)?' ('+esc(LS.get('modelCache',{}).id)+')':''}</option>${models.map(n=>`<option${s.model===n?' selected':''}>${esc(n)}</option>`).join('')}${s.model&&!models.includes(s.model)?`<option selected>${esc(s.model)}</option>`:''}</select><p class="hint">Để mặc định là được.</p></div>
+<div class="card"><h3>Từ hay gặp</h3><textarea class="inp" id="glossary">${esc(s.glossary)}</textarea><p class="hint">Tên client, nhãn hàng, điểm bán, người hay họp. Giúp chép lời đúng chính tả.</p><button class="btn ghost block" data-act="saveGloss" style="margin-top:8px">Lưu</button></div>
+<div class="card"><h3>Tài khoản KhoaBạc</h3>${!sb?'<p class="hint">Chưa cấu hình Supabase.</p>':st.user?`<p class="sum">Đã đăng nhập: <b>${esc(st.user.email)}</b></p><p class="hint">Checklist và lời thoại tự lưu lên mây, mở trên máy khác vẫn thấy. File ghi âm chỉ nằm trên máy đã ghi.</p><button class="btn ghost block" data-act="logout" style="margin-top:8px">Đăng xuất</button>`:`<p class="hint" style="margin-top:0">Đăng nhập cùng tài khoản KhoaBạc để lưu checklist lên mây. Không đăng nhập thì chỉ lưu trên máy này.</p><label class="field"><span>Email</span><input class="inp" id="email" type="email" autocomplete="email"></label><label class="field"><span>Mật khẩu</span><input class="inp" id="pw" type="password" autocomplete="current-password"></label><button class="btn block" data-act="login">Đăng nhập</button>`}</div>
+<div class="card"><h3>Bộ nhớ máy</h3><p class="sum" id="storage">Đang tính…</p><button class="btn ghost block" data-act="purge" style="margin-top:8px">Xoá ghi âm các buổi đã xong hơn 30 ngày</button><p class="hint">Chỉ xoá file âm thanh, giữ checklist và lời thoại.</p></div>`;
+}
+function render(){
+  const v=st.view;
+  $('#app').innerHTML=v==='rec'?vRec():v==='meeting'?vMeeting():v==='settings'?vSettings():v==='paste'?vPaste():vHome();
+  if(v==='meeting')loadPlayers();
+  if(v==='settings')showStorage();
+}
+let playerUrls=[];
+async function loadPlayers(){
+  const m=byId(st.cur);const box=$('#players');if(!m||!box)return;
+  playerUrls.forEach(u=>URL.revokeObjectURL(u));playerUrls=[];
+  let h='';
+  for(const seg of m.segments){
+    const a=await dbGet('audio',audioKey(m.id,seg.n));
+    if(!a){h+=`<p class="hint">Đoạn ${seg.n+1}: ${m.audioPurged?'đã xoá khỏi máy':'không có trên máy này'}.</p>`;continue}
+    const u=URL.createObjectURL(a.blob);playerUrls.push(u);
+    const ext=/webm/.test(a.mime)?'webm':/ogg/.test(a.mime)?'ogg':/mpeg|mp3/.test(a.mime)?'mp3':/wav/.test(a.mime)?'wav':'m4a';
+    h+=`${m.segments.length>1?`<p class="hint">Đoạn ${seg.n+1} · ${mins(seg.dur||0)}</p>`:''}<audio controls preload="metadata" src="${u}"></audio><a class="small" download="${esc((m.title||'ghi-hop').replace(/[\\/:*?"<>|]/g,''))}-${seg.n+1}.${ext}" href="${u}">Tải file về máy</a>`;
+  }
+  if($('#players')===box)box.innerHTML=h||'<p class="hint">Không có file.</p>';
+}
+async function showStorage(){
+  const el=$('#storage');if(!el)return;
+  let total=0;try{for(const a of await dbAll('audio'))total+=a.blob.size}catch(e){}
+  let extra='';try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();if(e.quota)extra=' · máy còn trống khoảng '+mb(e.quota-e.usage)}}catch(e){}
+  if($('#storage')===el)el.textContent='Ghi âm đang chiếm '+mb(total)+extra;
+}
+
+/* ---------- events ---------- */
+document.addEventListener('change',e=>{
+  if(e.target.id==='consent'){st.consent=e.target.checked;render()}
+  else if(e.target.id==='file'){importFile(e.target.files[0]);e.target.value=''}
+  else if(e.target.id==='model'){saveSettings({model:e.target.value});toast('Đã lưu.')}
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(e.target.id==='note'){e.preventDefault();addNote()}
+  if(e.target.id==='addText'){e.preventDefault();addItem()}
+});
+async function addItem(){
+  const m=byId(st.cur);const t=$('#addText').value.trim();if(!m||!m.result||!t)return;
+  const gname=$('#addGroup').value;let g=m.result.nhom.find(x=>x.ten===gname);
+  if(!g){g={ten:gname,viec:[]};m.result.nhom.push(g)}
+  g.viec.push({noi_dung:t,phu_trach:'',han:'',da_chot:true,trich_dan:'',manual:true});
+  await saveMeeting(m);render();toast('Đã thêm vào '+gname);
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act;const m=byId(st.cur);
+  if(b.tagName==='A')e.preventDefault();
+  switch(a){
+    case 'settings':st.view='settings';render();scrollTo(0,0);break;
+    case 'home':st.view='home';st.showText=false;render();scrollTo(0,0);break;
+    case 'kind':st.kind=b.dataset.k;LS.set('kind',st.kind);if(st.view==='paste'){document.querySelectorAll('.chip[data-act=kind]').forEach(c=>c.classList.toggle('on',c===b))}else render();break;
+    case 'rec':if(st.consent){st.consent=false;startRec(null)}break;
+    case 'more':if(m){if(!confirm('Ghi tiếp vào buổi họp này? Nhớ báo lại mọi người là đang ghi âm.'))return;startRec(m)}break;
+    case 'pause':pauseRec();break;
+    case 'stop':stopRec(false);break;
+    case 'note':addNote();break;
+    case 'paste':st.view='paste';render();scrollTo(0,0);break;
+    case 'pasteGo':importText();break;
+    case 'open':st.view='meeting';st.cur=b.dataset.id;st.showText=false;render();scrollTo(0,0);break;
+    case 'process':if(m)processMeeting(m);break;
+    case 'redo':if(m&&confirm('Lập lại checklist từ lời thoại? Các dấu tick hiện tại sẽ mất.'))processMeeting(m,{skipTranscribe:true});break;
+    case 'toggleText':st.showText=!st.showText;render();break;
+    case 'rename':if(m){const t=prompt('Tên buổi họp',m.title||'');if(t!=null){m.title=t.trim();await saveMeeting(m);render()}}break;
+    case 'tick':if(m){m.checks=m.checks||{};const k=b.dataset.k;m.checks[k]=!m.checks[k];if(!m.checks[k])delete m.checks[k];b.closest('.it').classList.toggle('done',!!m.checks[k]);
+      const card=b.closest('.card');const n=card&&card.querySelector('h3 .n');if(n&&k[0]==='g'){const its=card.querySelectorAll('.it');n.textContent=card.querySelectorAll('.it.done').length+'/'+its.length}
+      const p=progress(m);const top=document.querySelector('.card h3 .n');if(top&&/việc xong/.test(top.textContent))top.textContent=p.done+'/'+p.total+' việc xong';
+      saveMeeting(m)}break;
+    case 'addItem':addItem();break;
+    case 'copy':if(m)copyText(zaloText(m));break;
+    case 'share':if(m)shareText(m);break;
+    case 'del':if(m&&confirm('Xoá buổi họp này, cả ghi âm và checklist?')){
+      for(const s of m.segments){await dbDel('audio',audioKey(m.id,s.n)).catch(()=>{});await delChunks(audioKey(m.id,s.n)).catch(()=>{})}
+      await dbDel('meetings',m.id);st.list=st.list.filter(x=>x!==m);cloudDelete(m.id);st.view='home';render();toast('Đã xoá.')}break;
+    case 'saveKey':{
+      const k=$('#key').value.trim();saveSettings({key:k});LS.set('modelCache',null);const msg=$('#keyMsg');
+      if(!k){msg.textContent='Chưa có khoá.';break}
+      msg.textContent='Đang kiểm tra…';
+      try{const list=await listModels();st.models=list;const id=pickFlash(list)||'gemini-flash-latest';LS.set('modelCache',{id,at:Date.now(),k:k.slice(-6)});render();$('#keyMsg').textContent='Khoá dùng được ✓ Sẽ dùng '+id+'.';toast('Khoá dùng được.')}
+      catch(err){msg.textContent=err.message}
+      break}
+    case 'saveGloss':saveSettings({glossary:$('#glossary').value.trim()});toast('Đã lưu.');break;
+    case 'login':{
+      const{error}=await sb.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#pw').value});
+      if(error)toast('Sai email hoặc mật khẩu.');break}
+    case 'logout':await sb.auth.signOut();break;
+    case 'purge':{
+      const cut=Date.now()-30*864e5;let n=0;
+      for(const x of st.list){if(x.status==='done'&&x.createdAt<cut){for(const s of x.segments){if(await dbGet('audio',audioKey(x.id,s.n))){await dbDel('audio',audioKey(x.id,s.n));n++}}x.audioPurged=true;await saveMeeting(x,{local:true})}}
+      toast(n?'Đã xoá '+n+' file ghi âm.':'Không có ghi âm nào cũ hơn 30 ngày.');showStorage();break}
+  }
+});
+
+/* ---------- start ---------- */
+(async function init(){
+  try{st.list=await dbAll('meetings')}catch(e){st.list=[];toast('Trình duyệt chặn lưu dữ liệu (chế độ ẩn danh?). Ghi âm sẽ không được lưu.',5000)}
+  sortList();
+  await recoverStale().catch(()=>{});
+  // Anything left mid-processing when the app closed gets a retry button.
+  for(const m of st.list)if(m.status==='transcribing'||m.status==='summarizing'){m.status=m.transcript&&m.status==='summarizing'?'error':m.segments.length||m.transcript?'error':'audio';m.error='App bị đóng khi đang xử lý. Bấm Thử lại.';await saveMeeting(m,{local:true})}
+  render();
+  if(sb){
+    sb.auth.onAuthStateChange((ev,session)=>{const u=session&&session.user||null;const ch=(st.user&&st.user.id)!==(u&&u.id);st.user=u;if(ch){if(u)setTimeout(cloudLoad,0);if(st.view==='settings')render()}});
+  }
+})();
+</script>
+</body>
+</html>
