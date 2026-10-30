@@ -293,6 +293,7 @@ nav.tabs{background:var(--surface);border-top:0;border-radius:24px 24px 0 0;box-
 @keyframes shake{25%{transform:rotate(-10deg)}75%{transform:rotate(10deg)}}
 @keyframes hop{50%{transform:translateY(-12px)}}
 @media (prefers-reduced-motion:reduce){.react,.react .bunny,.mic.on{animation:none!important}}
+.mprev{display:block;font-size:12.5px;font-weight:800;color:var(--inc);margin-top:4px}
 .qrbox{text-align:center}.qrbox img{width:100%;max-width:340px;border-radius:18px;box-shadow:var(--shadow)}
 .bgimg{position:fixed;inset:0;z-index:0;background:radial-gradient(90% 60% at 15% 10%,#FCE3D2 0,transparent 60%),radial-gradient(80% 60% at 90% 90%,#E7E5FA 0,transparent 60%),var(--bg)}
 
@@ -1615,8 +1616,23 @@ document.addEventListener('click',e=>{
       save('meta');toast('Xong. Bấm + để ghi khoản đầu tiên.');break}
   }
 });
+/* Ô số tiền: gõ số thì tự thêm dấu chấm, gõ tắt (4tr, 45k) thì hiện số đầy đủ bên dưới */
+const isMoneyIn=el=>el&&el.matches&&el.matches('input[inputmode=decimal],input[inputmode=numeric]')&&el.id!=='qAcct';
+function moneyPrev(el,text){let p=el.nextElementSibling;if(!p||!p.classList.contains('mprev')){if(!text)return;p=document.createElement('small');p.className='mprev';el.insertAdjacentElement('afterend',p)}p.textContent=text;p.hidden=!text}
+function moneyLive(el){
+  const v=el.value;
+  if(/^[\d.\s]*$/.test(v)){
+    const pos=el.selectionStart??v.length;const before=v.slice(0,pos).replace(/\D/g,'').length;
+    const d=v.replace(/\D/g,'').replace(/^0+(?=\d)/,'');const f=d.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    if(f!==v){el.value=f;let i=0,n=0;while(i<f.length&&n<before){if(/\d/.test(f[i]))n++;i++}try{el.setSelectionRange(i,i)}catch(e){}}
+    const x=parseMoney(f);moneyPrev(el,d&&d.length<=3&&x>0?'= '+fmt(x):'');return;
+  }
+  const x=parseMoney(v);moneyPrev(el,x>0?'= '+fmt(x):'Chưa đọc được số tiền');
+}
+document.addEventListener('focusout',e=>{const el=e.target;if(!isMoneyIn(el)||!el.value.trim())return;const x=parseMoney(el.value);if(x>0&&!/^[\d.]+$/.test(el.value.trim())){el.value=fmtN(x);moneyPrev(el,'')}});
 document.addEventListener('input',e=>{
   const el=e.target;
+  if(isMoneyIn(el))moneyLive(el);
   if(el.dataset.act==='q'){filt.q=el.value;clearTimeout(el._t);el._t=setTimeout(render,200)}
 });
 document.addEventListener('change',async e=>{
