@@ -949,9 +949,10 @@ VIEWS.bills=()=>{
 };
 VIEWS.split=()=>{
   const list=S.splits.list.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  return hdr('Chia tiền nhóm',{back:'debts'})+`<div class="stack"><button class="btn" data-act="split-new">Chia một hoá đơn mới</button>
+  return hdr('Chia tiền nhóm',{back:'debts'})+`<div class="stack"><div class="grid2"><button class="btn" data-act="split-multi">🍻 Chia nhiều tăng</button><button class="btn sec" data-act="split-new">Chia 1 hoá đơn</button></div>
+  <p class="hint" style="margin:0">Nhiều tăng: mỗi tăng chọn ai tham gia (10 người tăng 1, 8 người tăng 2…), em tự cộng và tính ai chuyển cho ai.</p>
   <p class="hint" style="margin:0">Phần của bạn vào chi tiêu. Phần của người khác thành khoản họ nợ bạn (hoặc bạn nợ người trả hộ).</p>
-  <section class="card">${list.length?`<div class="rowlist">${list.map(s=>`<div class="row" style="cursor:default">${icon({em:'🍲',c:'#B58BE0'})}<div class="main"><div class="t">${esc(s.title)}</div><div class="s">${short(s.date)} · ${s.payer==='me'?'Bạn trả':esc(s.payer)+' trả'} · ${s.people.length} người</div></div><div class="amt">${fmt(s.total)}<small>Phần bạn ${fmtS(s.myShare)}</small></div></div>`).join('')}</div>`:`<div class="empty">Chưa có lần chia nào.</div>`}</section></div>`;
+  <section class="card">${list.length?`<div class="rowlist">${list.map(s=>`<div class="row" style="cursor:default">${icon({em:'🍲',c:'#B58BE0'})}<div class="main"><div class="t">${esc(s.title)}</div><div class="s">${short(s.date)} · ${s.multi?s.rounds.length+' tăng · ':''}${s.payer==='me'?'Bạn trả':esc(s.payer)+' trả'} · ${s.people.length+(s.multi?1:0)} người</div></div><div class="amt">${fmt(s.total)}<small>Phần bạn ${fmtS(s.myShare)}</small></div></div>`).join('')}</div>`:`<div class="empty">Chưa có lần chia nào.</div>`}</section></div>`;
 };
 function applyLook(){
   const el=document.querySelector('.bgimg');if(!el)return;const bg=st.user&&S.look&&S.look.bg;
@@ -1228,6 +1229,84 @@ function jobForm(id){
     const d=root.querySelector('#jDel');if(d)d.onclick=()=>{if((M().jobs[j.id]?.items||[]).length){toast('Job đã có khoản chi. Xoá các khoản đó trước, hoặc đánh dấu đã quyết toán.');return}S.meta.jobs=S.meta.jobs.filter(x=>x.id!==j.id);closeSheet();save('meta');go('jobs')};
   });
 }
+
+/* ---------- Chia nhiều tăng: mỗi tăng có số người khác nhau ---------- */
+function splitCalc(mem,rounds,roundK){
+  const n=mem.length,share=Array(n).fill(0),paid=Array(n).fill(0),det=mem.map(()=>[]);
+  rounds.forEach((r,k)=>{const who=[...r.who].filter(i=>i<n);if(!(r.amount>0)||!who.length)return;paid[r.payer]+=r.amount;const each=r.amount/who.length;for(const i of who){share[i]+=each;det[i].push({name:r.name,v:each,k})}});
+  const total=sum(rounds.filter(r=>r.amount>0&&[...r.who].length),r=>r.amount);
+  let sh=share.map(v=>roundK?Math.round(v/roundK)*roundK:Math.round(v));
+  const diff=total-sum(sh,v=>v);if(diff){let k=paid.indexOf(Math.max(...paid));if(k<0)k=0;sh[k]+=diff}
+  const net=sh.map((v,i)=>paid[i]-v);
+  const cred=net.map((v,i)=>({i,v})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v),debt=net.map((v,i)=>({i,v:-v})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const tr=[];let a=0,b=0;while(a<debt.length&&b<cred.length){const x=Math.min(debt[a].v,cred[b].v);if(x>0)tr.push({from:debt[a].i,to:cred[b].i,v:x});debt[a].v-=x;cred[b].v-=x;if(!debt[a].v)a++;if(!cred[b].v)b++}
+  return{share:sh,paid,net,tr,total,det};
+}
+function multiSplitForm(){
+  if(!S.meta.accounts.length){toast('Thêm ví trước đã.');return}
+  const people=[...new Set(M().ppl.map(p=>p.name))];
+  const mem=['Bạn'];let rounds=[{name:'Tăng 1',amount:0,payer:0,cat:'an',who:new Set([0])}];let roundK=1000;
+  openSheet('Chia nhiều tăng',`<div class="stack" style="gap:12px">
+   <div class="grid2"><label class="f">Buổi gì<input id="mTitle" placeholder="vd Team đi chơi"></label><label class="f">Ngày<input id="mDate" type="date" value="${today()}"></label></div>
+   <div><div class="lbl note" style="margin-bottom:6px">Ai đi (cả buổi)</div><div class="chips" id="mMem" style="flex-wrap:wrap"></div>
+    <div class="qrow" style="margin-top:8px"><input id="mName" class="in" list="pplListM" placeholder="Tên, có thể dán nhiều tên cách nhau dấu phẩy" autocomplete="off"><button class="btn sm" id="mAddP" type="button" style="flex:0 0 auto">Thêm</button></div></div>
+   <div id="mRounds" class="stack" style="gap:10px"></div>
+   <button class="btn sec sm" id="mAddR" type="button">+ Thêm tăng</button>
+   <div class="grid2"><label class="f">Phần bạn trả từ<select id="mAcc">${accOpts(defAcc())}</select></label><label class="f">Làm tròn<select id="mRound"><option value="1000" selected>1.000đ</option><option value="10000">10.000đ</option><option value="0">Không làm tròn</option></select></label></div>
+   <section class="card" id="mRes" style="padding:14px"></section>
+   <div class="grid2"><button class="btn sec" id="mCopy" type="button">Copy gửi nhóm</button><button class="btn" id="mSave" type="button">Lưu & ghi nợ</button></div>
+   <datalist id="pplListM">${people.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>`,root=>{
+    const g=q=>root.querySelector(q);
+    const drawMem=()=>{g('#mMem').innerHTML=mem.map((m,i)=>`<span class="chip on" style="display:inline-flex;gap:6px;align-items:center">${esc(m)}${i?`<button type="button" data-rmp="${i}" aria-label="Bỏ ${esc(m)}" style="border:0;background:none;cursor:pointer;padding:0;font-weight:900">✕</button>`:''}</span>`).join('');
+      root.querySelectorAll('[data-rmp]').forEach(b=>b.onclick=()=>{const k=+b.dataset.rmp;mem.splice(k,1);for(const r of rounds){r.who=new Set([...r.who].filter(i=>i!==k).map(i=>i>k?i-1:i));if(r.payer===k)r.payer=0;else if(r.payer>k)r.payer--}draw()})};
+    const addP=()=>{const v=g('#mName').value.split(/[,;\n]/).map(x=>capFirst(x.trim())).filter(Boolean);for(const nm of v){if(mem.some(m=>lc(m)===lc(nm)))continue;mem.push(nm);const k=mem.length-1;for(const r of rounds)r.who.add(k)}g('#mName').value='';draw();g('#mName').focus()};
+    g('#mAddP').onclick=addP;g('#mName').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addP()}};
+    g('#mAddR').onclick=()=>{const last=rounds[rounds.length-1];rounds.push({name:'Tăng '+(rounds.length+1),amount:0,payer:last?last.payer:0,cat:'giaitri',who:new Set(last?last.who:mem.map((_,i)=>i))});draw();setTimeout(()=>{const el=root.querySelectorAll('[data-rf=amount]');el[el.length-1]?.focus()},50)};
+    g('#mRound').onchange=()=>{roundK=+g('#mRound').value;result()};
+    function drawRounds(){
+      g('#mRounds').innerHTML=rounds.map((r,k)=>`<section class="card" style="padding:12px;border:2px solid var(--line)">
+       <div class="grid2"><label class="f">Tên tăng<input class="in" data-r="${k}" data-rf="name" value="${esc(r.name)}" placeholder="vd Ăn tối, Kara"></label><label class="f">Số tiền<input class="in num" data-r="${k}" data-rf="amount" inputmode="decimal" value="${r.amount?fmtN(r.amount):''}" placeholder="vd 2tr4"></label></div>
+       <div class="grid2" style="margin-top:8px"><label class="f">Ai trả<select data-r="${k}" data-rf="payer">${mem.map((m,i)=>`<option value="${i}"${i===r.payer?' selected':''}>${esc(m)}</option>`).join('')}</select></label><label class="f">Nhóm (phần bạn)<select data-r="${k}" data-rf="cat">${catOpts(EXP_CATS,r.cat)}</select></label></div>
+       <div class="lbl note" style="margin:8px 0 4px">Ai tham gia tăng này (${[...r.who].length}/${mem.length}) · <button type="button" class="link" data-all="${k}" style="border:0;background:none;color:var(--link);cursor:pointer;font-weight:700;padding:0">${r.who.size===mem.length?'Bỏ chọn hết':'Chọn hết'}</button></div>
+       <div class="chips" style="flex-wrap:wrap">${mem.map((m,i)=>`<button type="button" class="chip${r.who.has(i)?' on':''}" data-tg="${k}:${i}">${esc(m)}</button>`).join('')}</div>
+       ${rounds.length>1?`<button type="button" class="btn ghost sm" data-rmr="${k}" style="margin-top:6px">Xoá tăng này</button>`:''}</section>`).join('');
+      root.querySelectorAll('[data-rf]').forEach(el=>{const ev=el.tagName==='SELECT'?'change':'input';el.addEventListener(ev,()=>{const r=rounds[+el.dataset.r],f=el.dataset.rf;if(f==='amount')r.amount=parseMoney(el.value)||0;else if(f==='payer')r.payer=+el.value;else r[f]=el.value;result()})});
+      root.querySelectorAll('[data-tg]').forEach(b=>b.onclick=()=>{const[k,i]=b.dataset.tg.split(':').map(Number);const w=rounds[k].who;w.has(i)?w.delete(i):w.add(i);drawRounds();result()});
+      root.querySelectorAll('[data-all]').forEach(b=>b.onclick=()=>{const r=rounds[+b.dataset.all];r.who=r.who.size===mem.length?new Set():new Set(mem.map((_,i)=>i));drawRounds();result()});
+      root.querySelectorAll('[data-rmr]').forEach(b=>b.onclick=()=>{rounds.splice(+b.dataset.rmr,1);drawRounds();result()});
+    }
+    function result(){
+      const c=splitCalc(mem,rounds,roundK);
+      g('#mRes').innerHTML=!c.total?'<div class="note">Nhập số tiền từng tăng để em tính.</div>':`<div class="card-h" style="margin:0 0 6px"><h2>Tổng ${fmt(c.total)}</h2><span class="hint">${mem.length} người</span></div>
+       ${mem.map((m,i)=>`<div class="kv"><span><b>${esc(m)}</b><br><span class="hint" style="background:none;padding:0">${c.det[i].map(d=>esc(d.name)).join(' + ')||'không tham gia'}${c.paid[i]?' · đã trả '+fmt(c.paid[i]):''}</span></span><b class="num">${fmt(c.share[i])}</b></div>`).join('')}
+       <div class="lbl note" style="margin:10px 0 4px"><b>Ai chuyển cho ai</b></div>
+       ${c.tr.length?c.tr.map(t=>`<div class="kv"><span>${esc(mem[t.from])} → ${esc(mem[t.to])}</span><b class="num ${t.to===0?'pos':t.from===0?'neg':''}">${fmt(t.v)}</b></div>`).join(''):'<div class="note">Không ai nợ ai.</div>'}`;
+    }
+    function draw(){drawMem();drawRounds();result()}
+    draw();
+    g('#mCopy').onclick=async()=>{const c=splitCalc(mem,rounds,roundK);if(!c.total){toast('Nhập số tiền trước nha.');return}
+      const me=displayName();const nm=i=>i===0?me:mem[i];
+      const txt=`💸 ${g('#mTitle').value.trim()||'Chia tiền'} – tổng ${fmt(c.total)}\n`+rounds.filter(r=>r.amount>0).map(r=>`• ${r.name}: ${fmt(r.amount)} / ${r.who.size} người (${nm(r.payer)} trả)`).join('\n')+`\n\nMỗi người:\n`+mem.map((m,i)=>`- ${nm(i)}: ${fmt(c.share[i])}`).join('\n')+(c.tr.length?`\n\nChuyển khoản:\n`+c.tr.map(t=>`- ${nm(t.from)} → ${nm(t.to)}: ${fmt(t.v)}`).join('\n'):'')+`\n(KhoaBạc)`;
+      try{await navigator.clipboard.writeText(txt);toast('Đã copy, dán vào nhóm Zalo nha')}catch(e){openSheet('Copy gửi nhóm',`<textarea class="in" style="width:100%;height:320px">${esc(txt)}</textarea>`)}};
+    g('#mSave').onclick=()=>{
+      const c=splitCalc(mem,rounds,roundK);if(!c.total){toast('Nhập số tiền ít nhất một tăng.');return}
+      if(mem.length<2){toast('Thêm người đi cùng trước nha.');return}
+      const title=g('#mTitle').value.trim()||'Đi chơi';const date=g('#mDate').value||today();const acc=g('#mAcc').value;const sid=uid();const docs=new Set(['splits']);
+      const X=sum(c.tr.filter(t=>t.to===0),t=>t.v);let walletPart=Math.max(0,c.paid[0]-X);
+      // phần của bạn theo từng tăng (đã làm tròn theo tỉ lệ)
+      const rawMe=sum(c.det[0],d=>d.v)||1;
+      let left=c.share[0];c.det[0].forEach((d,idx)=>{const r=rounds[d.k];const v=idx===c.det[0].length-1?left:Math.round(c.share[0]*d.v/rawMe);left-=v;if(v<=0)return;
+        const w=Math.min(v,walletPart);walletPart-=w;
+        if(w>0)docs.add(addTx({type:'exp',amount:w,cat:r?r.cat:'giaitri',acc,date,note:title+' · '+d.name,splitId:sid}));
+        if(v-w>0)docs.add(addTx({type:'exp',amount:v-w,cat:r?r.cat:'giaitri',acc:'',date,note:title+' · '+d.name+' (người khác trả)',splitId:sid}));});
+      const pname=i=>{const ex=M().ppl.find(x=>x.key===lc(mem[i]).trim());return ex?ex.name:mem[i]};
+      for(const t of c.tr){if(t.to===0)docs.add(addTx({type:'lend',amount:t.v,person:pname(t.from),acc,date,note:'Chia: '+title,splitId:sid}));else if(t.from===0)docs.add(addTx({type:'borrow',amount:t.v,person:pname(t.to),acc:'',date,note:'Chia: '+title,splitId:sid}))}
+      S.splits.list.push({id:sid,title,total:c.total,date,payer:c.paid[0]?'me':mem[c.paid.indexOf(Math.max(...c.paid))],myShare:c.share[0],multi:true,rounds:rounds.map(r=>({name:r.name,amount:r.amount,payer:mem[r.payer],who:[...r.who].map(i=>mem[i])})),people:mem.slice(1).map((m,k)=>({name:m,share:c.share[k+1]}))});
+      closeSheet();save(...docs);bunnyPop('flex','Chia xong rồi! Nhớ đòi tiền nha 💸',`Phần bạn ${fmt(c.share[0])} · tổng ${fmt(c.total)}`);
+    };
+  });
+}
+
 function splitForm(){
   if(!S.meta.accounts.length){toast('Thêm ví trước đã.');return}
   const people=[...new Set(M().ppl.map(p=>p.name))];
@@ -1587,6 +1666,7 @@ document.addEventListener('click',e=>{
     case'job-edit':jobForm(el.dataset.id);break;
     case'job-close':{const j=S.meta.jobs.find(x=>x.id===el.dataset.id);j.closed=!j.closed;save('meta');toast(j.closed?'Đã đánh dấu quyết toán':'Đã mở lại job');break}
     case'split-new':splitForm();break;
+    case'split-multi':multiSplitForm();break;
     case'rc-view':{const t=findTx(el.dataset.id);if(!t||!t.rc)break;openSheet('Chứng từ',`<div class="stack" style="gap:12px"><img data-img="${t.rc}" alt="Ảnh chứng từ" style="width:100%;border-radius:16px;background:var(--sunk);min-height:160px"><div class="note">${esc(t.note||JCAT[t.jcat||'k'].name)} · ${fmt(t.amount)} · ${short(t.date)}</div><div class="grid2"><label class="btn sec" style="cursor:pointer">Đổi ảnh<input type="file" accept="image/*" capture="environment" hidden data-rc="${t.id}"></label><button class="btn danger" data-act="rc-del" data-id="${t.id}">Xoá ảnh</button></div></div>`,r=>hydrateImgs(r));break}
     case'rc-del':{const t=findTx(el.dataset.id);if(!t||!t.rc)break;const old=t.rc;delete t.rc;closeSheet();save('tx-'+t.date.slice(0,7));delImg(old);toast('Đã xoá ảnh chứng từ');break}
     case'print':window.print();break;
@@ -1629,7 +1709,7 @@ function moneyLive(el){
   }
   const x=parseMoney(v);moneyPrev(el,x>0?'= '+fmt(x):'Chưa đọc được số tiền');
 }
-document.addEventListener('focusout',e=>{const el=e.target;if(!isMoneyIn(el)||!el.value.trim())return;const x=parseMoney(el.value);if(x>0&&!/^[\d.]+$/.test(el.value.trim())){el.value=fmtN(x);moneyPrev(el,'')}});
+document.addEventListener('focusout',e=>{const el=e.target;if(!isMoneyIn(el)||!el.value.trim())return;const x=parseMoney(el.value);if(x>0&&!/^[\d.]+$/.test(el.value.trim()))el.value=fmtN(x)});
 document.addEventListener('input',e=>{
   const el=e.target;
   if(isMoneyIn(el))moneyLive(el);
