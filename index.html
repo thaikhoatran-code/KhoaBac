@@ -236,6 +236,24 @@ nav.tabs{background:var(--surface);border-top:0;border-radius:24px 24px 0 0;box-
 @keyframes wob{0%,100%{transform:rotate(0)}50%{transform:rotate(-4deg)}}
 @keyframes pump{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media (prefers-reduced-motion:reduce){.buddy .bunny{animation:none!important}}
+/* Bộ màu Marine Miracle (Dulux 16BG 27/325, xanh ngọc) */
+:root[data-skin="marine"]{
+  --bg:#EAF4F3; --surface:#FAFEFD; --sunk:#D9ECEA; --line:#C9E1DF;
+  --fg:#1D3332; --muted:#587472; --faint:#8EA9A7;
+  --accent:#4A9B98; --accent-ink:#FFFFFF; --accent-soft:#D2EAE8; --link:#2C7471; --hero:#D6EDEB;
+  --shadow:0 1px 2px rgba(20,60,58,.06),0 8px 22px rgba(30,90,86,.09)}
+@media (prefers-color-scheme:dark){:root[data-skin="marine"]:not([data-theme="light"]){
+  --bg:#0E1C1B; --surface:#162927; --sunk:#1E3432; --line:#29433F;
+  --fg:#E2F1EF; --muted:#9AB7B4; --faint:#678583;
+  --accent:#5DB3AF; --accent-ink:#0A1918; --accent-soft:#1C3A38; --link:#7FCBC7; --hero:#1A3432}}
+:root[data-skin="marine"] .bgimg{background:radial-gradient(90% 60% at 15% 10%,#D3EEEA 0,transparent 60%),radial-gradient(80% 60% at 90% 90%,#DCE9F5 0,transparent 60%),var(--bg)}
+@media (prefers-color-scheme:dark){:root[data-skin="marine"]:not([data-theme="light"]) .bgimg{background:var(--bg)}}
+:root[data-skin="marine"] nav.tabs{box-shadow:0 -6px 24px rgba(30,90,86,.10)}
+:root[data-skin="marine"] .bunny.emo{background:linear-gradient(160deg,#F1FAF9,#D5ECEA)}
+.skins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.skin{border:3px solid transparent;border-radius:18px;padding:10px;background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:var(--fg);box-shadow:var(--shadow)}
+.skin.on{border-color:var(--accent)}
+.skin .sw{display:flex;gap:4px;margin-bottom:8px}.skin .sw i{flex:1;height:26px;border-radius:8px}
 /* Khu công việc: dải xanh để tách khỏi tiền cá nhân */
 .workband{display:flex;gap:10px;align-items:center;background:linear-gradient(135deg,#DDEBFA,#E9E4FB);color:#24476E;border-radius:18px;padding:10px 14px;font-size:13px;font-weight:700}
 .workband b{font-size:15px;display:block}
@@ -954,7 +972,13 @@ VIEWS.split=()=>{
   <p class="hint" style="margin:0">Phần của bạn vào chi tiêu. Phần của người khác thành khoản họ nợ bạn (hoặc bạn nợ người trả hộ).</p>
   <section class="card">${list.length?`<div class="rowlist">${list.map(s=>`<div class="row" style="cursor:default">${icon({em:'🍲',c:'#B58BE0'})}<div class="main"><div class="t">${esc(s.title)}</div><div class="s">${short(s.date)} · ${s.multi?s.rounds.length+' tăng · ':''}${s.payer==='me'?'Bạn trả':esc(s.payer)+' trả'} · ${s.people.length+(s.multi?1:0)} người</div></div><div class="amt">${fmt(s.total)}<small>Phần bạn ${fmtS(s.myShare)}</small></div></div>`).join('')}</div>`:`<div class="empty">Chưa có lần chia nào.</div>`}</section></div>`;
 };
+const SKINS=[['','Kem vàng',['#FBF3EA','#F2B33D','#FCEBC4','#3A2E27']],['marine','Marine Miracle',['#EAF4F3','#4A9B98','#D2EAE8','#1D3332']]];
+function applySkin(){
+  const k=(st.user&&S.look&&S.look.skin)||'';const r=document.documentElement;
+  if((r.dataset.skin||'')!==k){if(k)r.dataset.skin=k;else delete r.dataset.skin;const m=document.querySelector('meta[name=theme-color]');if(m)m.content=k==='marine'?'#EAF4F3':'#FBF3EA'}
+}
 function applyLook(){
+  applySkin();
   const el=document.querySelector('.bgimg');if(!el)return;const bg=st.user&&S.look&&S.look.bg;
   if(!bg){el.style.background='';return}
   const wide=matchMedia('(orientation:landscape)').matches;
@@ -974,7 +998,8 @@ VIEWS.look=()=>{
    <div style="width:76px;height:${k==='bg'?120:76}px;border-radius:16px;flex:none;background:var(--sunk) ${L[k]?`url('${L[k]}') center/cover`:''};display:grid;place-items:center;font-size:26px">${L[k]?'':k==='bg'?'🖼️':k==='grumpy'?'😾':'💪'}</div>
    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px"><div><b>${title}</b><div class="note">${desc}</div></div>
    <div class="btns"><label class="btn sm" style="flex:0 0 auto;cursor:pointer">${L[k]?'Đổi ảnh':'Chọn ảnh'}<input type="file" accept="image/*" hidden data-look="${k}"></label>${L[k]?`<button class="btn sm sec" style="flex:0 0 auto" data-act="look-rm" data-k="${k}">Bỏ ảnh</button>`:''}</div></div></section>`;
-  return hdr('Hình nền & linh vật',{back:'more'})+`<div class="stack">
+  return hdr('Màu app & hình nền',{back:'more'})+`<div class="stack">
+  <section class="card"><div class="card-h"><h2>Màu app</h2></div><div class="skins">${SKINS.map(([k,n,c])=>`<button class="skin${(L.skin||'')===k?' on':''}" data-act="skin" data-k="${k}"><div class="sw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</div><b>${n}</b></button>`).join('')}</div></section>
   ${slot('bg','Hình nền','Ảnh dọc là đẹp nhất. Phủ kín nền app, các thẻ vẫn rõ chữ.')}
   ${slot('grumpy','Linh vật lúc nhắc nhở','Hiện khi vượt ngân sách, hoá đơn quá hạn.')}
   ${slot('flex','Linh vật lúc vui','Hiện khi để dành tốt và ngày bình thường.')}
@@ -992,7 +1017,7 @@ VIEWS.more=()=>{
   ${it('income','Thu nhập','TB 6 tháng '+fmtS(I.avg),'','💰')}
   ${it('bills','Hoá đơn định kỳ',b?b+' khoản chưa đóng':'Đã đóng hết tháng này','','📅')}
   ${it('split','Chia tiền nhóm','Đi ăn, du lịch, ai nợ ai','','🍲')}
-  ${it('look','Hình nền & linh vật','Ảnh riêng của bạn','','🎨')}
+  ${it('look','Màu app & hình nền','Đổi màu, ảnh nền, linh vật','','🎨')}
   ${it('','Tạo mã QR nhận tiền',S.meta.settings.qr?'Nhập số tiền, bấm Tạo mã':'Điền tài khoản rồi tạo mã','qr-setup','📲')}
   ${it('','Xuất CSV','Mở bằng Excel / Sheets','export','📤')}
   </div>
@@ -1682,6 +1707,7 @@ document.addEventListener('click',e=>{
     case'recap-ai':recapAI(el.dataset.ym);break;
     case'export':exportCsv();break;
     case'logout':signOut();break;
+    case'skin':S.look=S.look||{};if(el.dataset.k)S.look.skin=el.dataset.k;else delete S.look.skin;save('look');toast('Đã đổi màu app');break;
     case'look-rm':delete S.look[el.dataset.k];save('look');toast('Đã bỏ ảnh');break;
     case'demo-on':st.real=S;S=demoData();st.demo=true;ver++;go('home');render();break;
     case'demo-off':S=st.real||blank();st.real=null;st.demo=false;chat=[];ver++;go('home');render();break;
