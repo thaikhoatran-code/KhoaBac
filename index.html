@@ -254,6 +254,17 @@ nav.tabs{background:var(--surface);border-top:0;border-radius:24px 24px 0 0;box-
 .skin{border:3px solid transparent;border-radius:18px;padding:10px;background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:var(--fg);box-shadow:var(--shadow)}
 .skin.on{border-color:var(--accent)}
 .skin .sw{display:flex;gap:4px;margin-bottom:8px}.skin .sw i{flex:1;height:26px;border-radius:8px}
+/* Bộ màu Water Rush (98BG 45/237) và Celestial (99BG 62/159) */
+:root[data-skin="water"]{--bg:#E9F2F8; --surface:#FAFDFF; --sunk:#D8E8F2; --line:#C7DDEB; --fg:#1B2F3B; --muted:#56717F; --faint:#8EA6B4; --accent:#80B7D4; --accent-ink:#13303F; --accent-soft:#D4E8F3; --link:#2F6F94; --hero:#D6E8F3; --shadow:0 1px 2px rgba(20,50,70,.06),0 8px 22px rgba(30,80,110,.09)}
+@media (prefers-color-scheme:dark){:root[data-skin="water"]:not([data-theme="light"]){--bg:#0E1A22; --surface:#15242E; --sunk:#1C303C; --line:#284050; --fg:#E2EEF6; --muted:#9DB6C6; --faint:#678496; --accent-soft:#1D3644; --hero:#1A3140; --accent:#80B7D4; --accent-ink:#0E2330; --link:#9CCBE4}}
+:root[data-skin="water"] .bgimg{background:radial-gradient(90% 60% at 15% 10%,#CFE5F2 0,transparent 60%),radial-gradient(80% 60% at 90% 90%,#E2E5F7 0,transparent 60%),var(--bg)}
+@media (prefers-color-scheme:dark){:root[data-skin="water"]:not([data-theme="light"]) .bgimg{background:var(--bg)}}
+:root[data-skin="water"] .bunny.emo{background:linear-gradient(160deg,#F4F9FD,#D6E8F3)}
+:root[data-skin="celestial"]{--bg:#F0F7FC; --surface:#FCFEFF; --sunk:#E0EEF7; --line:#D2E5F1; --fg:#1E3240; --muted:#5D7685; --faint:#94ABB9; --accent:#AED2E8; --accent-ink:#1A3445; --accent-soft:#DDEDF7; --link:#3A7DA4; --hero:#DEEEF8; --shadow:0 1px 2px rgba(20,50,70,.05),0 8px 22px rgba(40,90,120,.08)}
+@media (prefers-color-scheme:dark){:root[data-skin="celestial"]:not([data-theme="light"]){--bg:#0E1A22; --surface:#15242E; --sunk:#1C303C; --line:#284050; --fg:#E2EEF6; --muted:#9DB6C6; --faint:#678496; --accent-soft:#1D3644; --hero:#1A3140; --accent:#AED2E8; --accent-ink:#13293A; --link:#BFDDEF}}
+:root[data-skin="celestial"] .bgimg{background:radial-gradient(90% 60% at 15% 10%,#DCEDF8 0,transparent 60%),radial-gradient(80% 60% at 90% 90%,#EAE6F8 0,transparent 60%),var(--bg)}
+@media (prefers-color-scheme:dark){:root[data-skin="celestial"]:not([data-theme="light"]) .bgimg{background:var(--bg)}}
+:root[data-skin="celestial"] .bunny.emo{background:linear-gradient(160deg,#F4F9FD,#D6E8F3)}
 /* Khu công việc: dải xanh để tách khỏi tiền cá nhân */
 .workband{display:flex;gap:10px;align-items:center;background:linear-gradient(135deg,#DDEBFA,#E9E4FB);color:#24476E;border-radius:18px;padding:10px 14px;font-size:13px;font-weight:700}
 .workband b{font-size:15px;display:block}
@@ -972,10 +983,10 @@ VIEWS.split=()=>{
   <p class="hint" style="margin:0">Phần của bạn vào chi tiêu. Phần của người khác thành khoản họ nợ bạn (hoặc bạn nợ người trả hộ).</p>
   <section class="card">${list.length?`<div class="rowlist">${list.map(s=>`<div class="row" style="cursor:default">${icon({em:'🍲',c:'#B58BE0'})}<div class="main"><div class="t">${esc(s.title)}</div><div class="s">${short(s.date)} · ${s.multi?s.rounds.length+' tăng · ':''}${s.payer==='me'?'Bạn trả':esc(s.payer)+' trả'} · ${s.people.length+(s.multi?1:0)} người</div></div><div class="amt">${fmt(s.total)}<small>Phần bạn ${fmtS(s.myShare)}</small></div></div>`).join('')}</div>`:`<div class="empty">Chưa có lần chia nào.</div>`}</section></div>`;
 };
-const SKINS=[['','Kem vàng',['#FBF3EA','#F2B33D','#FCEBC4','#3A2E27']],['marine','Marine Miracle',['#EAF4F3','#4A9B98','#D2EAE8','#1D3332']]];
+const SKINS=[['','Kem vàng',['#FBF3EA','#F2B33D','#FCEBC4','#3A2E27']],['marine','Marine Miracle',['#EAF4F3','#4A9B98','#D2EAE8','#1D3332']],['water','Water Rush',['#E9F2F8','#80B7D4','#D4E8F3','#1B2F3B']],['celestial','Celestial',['#F0F7FC','#AED2E8','#DDEDF7','#1E3240']]];
 function applySkin(){
   const k=(st.user&&S.look&&S.look.skin)||'';const r=document.documentElement;
-  if((r.dataset.skin||'')!==k){if(k)r.dataset.skin=k;else delete r.dataset.skin;const m=document.querySelector('meta[name=theme-color]');if(m)m.content=k==='marine'?'#EAF4F3':'#FBF3EA'}
+  if((r.dataset.skin||'')!==k){if(k)r.dataset.skin=k;else delete r.dataset.skin;const m=document.querySelector('meta[name=theme-color]');if(m)m.content={marine:'#EAF4F3',water:'#E9F2F8',celestial:'#F0F7FC'}[k]||'#FBF3EA'}
 }
 function applyLook(){
   applySkin();
